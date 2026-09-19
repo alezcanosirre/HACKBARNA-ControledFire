@@ -15,7 +15,7 @@ export type SimMinutes = number;
 
 export type ResourceId = string;
 
-export type ResourceType = "BRIGADE" | "HELICOPTER" | "AIRPLANE";
+export type ResourceType = "BRIGADE" | "HELICOPTER" | "TRUCK" | "POLICE" | "DRONE";
 export type ResourceStatus = "AVAILABLE" | "DEPLOYED" | "BUSY" | "EXHAUSTED";
 export type TerrainType = "FOREST" | "GRASS" | "URBAN" | "ROAD" | "WATER";
 export type CellStatus = "NORMAL" | "BURNING" | "BURNED" | "PROTECTED";
