@@ -1,75 +1,62 @@
 import { useEffect, useState } from 'react';
 
-import type { AIAnalysis, RankedAction } from '../mocks/types';
-import type { LiveFireDetail } from './groupFires';
+import type { AIAnalysis } from '../mocks/types';
+import type { LiveFireSummary } from './types';
 
 /**
- * Stand-in for the real call: the backend endpoint that hands a live fire's data to
- * Nebius and gets back a ranked action list isn't built yet (see conversation — "de
- * momento solo el frontend, nos conectaremos mediante IA con Nebius"). The shape below
- * IS the real contract (AIAnalysis, spec.md §6.4) so swapping the body of
- * `useFireActions` for a `fetch('/api/live-fires/:id/actions')` later needs no change
- * anywhere else.
+ * The real call: POST /api/live-fires/:id/actions (api/src/live/fireActions.ts) hands
+ * the cluster's data to Nebius server-side and returns AIAnalysis (spec.md §6.4) — the
+ * frontend never talks to Nebius directly, only to our own backend, proxied by Vite the
+ * same way /api/live-fires already is.
  */
-function stubAnalysisFor(fire: LiveFireDetail): AIAnalysis {
-  const actions: RankedAction[] = [
-    {
-      action_id: 'DEPLOY_RESOURCE:helicopter',
-      label: 'Send a water-bombing helicopter',
-      rank: 1,
-      urgency: 'immediate',
-      why: fire.fireRadiativePowerMw
-        ? `Radiative power of ${fire.fireRadiativePowerMw.toFixed(1)} MW on the most recent detection — an active front, not a residual hotspot.`
-        : 'Active detection with no radiative-power reading yet — treat as a live front until proven otherwise.',
-      resources: ['Water-bombing helicopter'],
-      status: 'proposed',
-    },
-    {
-      action_id: 'CREATE_FIREBREAK',
-      label: 'Scout the perimeter for a firebreak line',
-      rank: 2,
-      urgency: 'soon',
-      why: `${fire.cellIds.length} adjacent cell(s) confirmed burning — enough ground to plan containment now rather than after it grows further.`,
-      resources: ['Ground crew'],
-      status: 'proposed',
-    },
-  ];
-
-  return {
-    target_id: fire.id,
-    summary: 'Placeholder analysis — no AI call wired yet, see useFireActions.ts.',
-    priority_rationale: 'Fixed order until the real model ranks by wind, values at risk and fuel.',
-    actions,
-    model: 'stub (Nebius integration pending)',
-    generated_at: fire.detectedAt ?? new Date(0).toISOString(),
-  };
+async function fetchAnalysisFor(fire: LiveFireSummary): Promise<AIAnalysis> {
+  const res = await fetch(`/api/live-fires/${encodeURIComponent(fire.id)}/actions`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `fire-actions request failed: ${res.status}`);
+  }
+  return (await res.json()) as AIAnalysis;
 }
 
-const FAKE_LATENCY_MS = 500;
-
-export function useFireActions(fire: LiveFireDetail | null): {
+export function useFireActions(fire: LiveFireSummary | null): {
   analysis: AIAnalysis | null;
   loading: boolean;
+  error: string | null;
 } {
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!fire) {
       setAnalysis(null);
       setLoading(false);
+      setError(null);
       return;
     }
+    let cancelled = false;
     setLoading(true);
-    const timer = window.setTimeout(() => {
-      setAnalysis(stubAnalysisFor(fire));
-      setLoading(false);
-    }, FAKE_LATENCY_MS);
-    return () => window.clearTimeout(timer);
+    setError(null);
+    fetchAnalysisFor(fire)
+      .then((result) => {
+        if (!cancelled) setAnalysis(result);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'unknown error');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // Keyed on the id, not the object: a poll cycle rebuilds `fire` every 2 min even
-    // when nothing changed, and re-fetching on every poll would flicker the panel.
+    // when nothing changed, and re-fetching (a paid Nebius call) on every poll would
+    // both flicker the panel and burn money for no reason.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fire?.id]);
 
-  return { analysis, loading };
+  return { analysis, loading, error };
 }

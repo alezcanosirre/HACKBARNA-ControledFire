@@ -6,12 +6,14 @@ import { useSyncExternalStore } from 'react';
  * goes wrong.
  *
  *   /actual            at rest
- *   /actual/:id        cell selected
+ *   /actual/:id        fire selected
  *   /pred              at rest
+ *   /pred/:id          cell selected
  *
- * `id` identifies the FIRE, not the cell: the map groups contiguous cells into one
- * incident (src/map/grid.ts), and selecting a cell selects its whole fire. UX.md §1
- * writes it as `:cellId`; the concept is the same, what opens is the incident.
+ * What `id` means depends on the page, and that is not sloppiness. On ACTUAL it is the
+ * FIRE: the Engine carries a single `fire` projection and the map groups contiguous
+ * cells into one incident, so selecting a cell selects the whole thing. On PRED it is
+ * the CELL: risk is a per-cell number, there is no incident to group.
  *
  * Hard rule: with a selection open you do NOT change page. It holds by itself here,
  * because the only place to navigate between pages is the menu and the menu does not
@@ -31,9 +33,7 @@ const HOME: Route = { page: 'actual', selection: null };
 function parse(pathname: string): Route {
   const [rawPage, rawSelection] = pathname.replace(/^\/+|\/+$/g, '').split('/');
   const page: Page = rawPage === 'pred' ? 'pred' : 'actual';
-  // Only ACTUAL has a panel for a selection (UX.md §5). The PRED one is §7 and is not
-  // built yet, so a /pred/something URL reads as PRED at rest.
-  const selection = page === 'actual' && rawSelection ? decodeURIComponent(rawSelection) : null;
+  const selection = rawSelection ? decodeURIComponent(rawSelection) : null;
   return { page, selection };
 }
 
@@ -86,11 +86,7 @@ export function go(next: Route) {
   publish(target);
 }
 
-export function openSelection(id: string) {
-  // Only ACTUAL has a detail panel (UX.md §5). PRED is §7 and is not built yet.
-  if (current.page !== 'actual') return;
-  go({ page: 'actual', selection: id });
-}
+export const openSelection = (id: string) => go({ page: current.page, selection: id });
 
 /** The back button and `Esc`: they switch the selection off, they are not browser back. */
 export const clearSelection = () => go({ page: current.page, selection: null });

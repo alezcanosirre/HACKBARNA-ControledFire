@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import DeckGL from '@deck.gl/react';
-import { latLngToCell } from 'h3-js';
 import { Map } from 'react-map-gl/maplibre';
 import { FlyToInterpolator, type MapViewState } from '@deck.gl/core';
 import { QuadkeyLayer } from '@deck.gl/geo-layers';
@@ -14,9 +13,10 @@ import { SIM_FIRE_ID, useSimulation } from './engine/useSimulation';
 import { useLiveFireState } from './live/useLiveFireState';
 import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { quadkeysForH3Cells } from './live/h3ToQuadkey';
-import { LIVE_H3_RES, groupActiveFires, withHotspotDetail } from './live/groupFires';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
+import { RISK_CELLS } from './mocks/predictions.mock';
+import { riskFill, riskStroke } from './pred/risk';
 
 /**
  * Framing when a fire is selected. Two corrections over the raw fit:
@@ -74,6 +74,8 @@ export default function App() {
   // contiguous cells are the same thing. The Engine agrees — `SimulationState.fire` is
   // a single projection, not a list — so there is exactly one id to select.
   const selectedFire = route.page === 'actual' ? route.selection : null;
+  // PRED paints risk instead of fire. Same grid, same camera: only the data changes.
+  const onPred = route.page === 'pred';
 
   /*
    * Two sources, and they are not the same kind of thing.
@@ -101,20 +103,13 @@ export default function App() {
     return statusFromLiveCells(active, risk);
   }, [live.data]);
 
-  /*
-   * The backend still answers with a flat cell list, not one entry per incident (see
-   * live/groupFires.ts) — so fires are grouped here, client-side, purely to give a
-   * click something to select. `quadkeyToFireId` maps each rasterised square back to
-   * whichever group it came from, since the picked object on click is a quadkey, not
-   * an H3 cell.
-   */
-  const liveFires = useMemo(() => {
-    const groups = groupActiveFires(live.data?.activeCellIds ?? []);
-    return withHotspotDetail(groups, live.data?.hotspots ?? [], (h) =>
-      latLngToCell(h.lat, h.lng, LIVE_H3_RES),
-    );
-  }, [live.data]);
+  // One incident per Deepfire cluster, computed server-side (api/src/live/liveFireState.ts).
+  const liveFires = useMemo(() => live.data?.fires ?? [], [live.data]);
 
+  /*
+   * `quadkeyToFireId` maps each rasterised square back to whichever fire it came from,
+   * since the picked object on click is a quadkey, not an H3 cell.
+   */
   const quadkeyToFireId = useMemo(() => {
     // `Map` here is the JS built-in, not the react-map-gl component imported above —
     // globalThis avoids the name collision.
@@ -216,12 +211,43 @@ export default function App() {
         extruded: false,
         pickable: false,
       }),
+      /*
+       * PRED. Changing page does not move a single piece of interface (UX.md §10): the
+       * reference grid stays exactly where it is and only the data on it changes, which
+       * is what makes ACTUAL and PRED read as two readings of the same place rather
+       * than two places.
+       *
+       * Risk is continuous, so it is interpolated instead of bucketed (spec.md §4.7),
+       * and nothing beats here — the pulse belongs to real fire, and a risk is not an
+       * emergency (UX.md §6).
+       *
+       * STILL MOCKED. The live feed returns `riskCellIds` as a flat list with no score
+       * per cell, so the ramp has nothing to interpolate yet. The components are typed
+       * against `Prediction` (spec §6.3), so connecting it means changing where the
+       * data comes from, not the UI.
+       */
+      new QuadkeyLayer<(typeof RISK_CELLS)[number]>({
+        id: 'pred-risk',
+        data: onPred ? RISK_CELLS : [],
+        getQuadkey: (d) => d.cell_id,
+        getFillColor: (d) => riskFill(d.risk),
+        getLineColor: (d) => riskStroke(d.risk),
+        lineWidthMinPixels: 1,
+        filled: true,
+        stroked: true,
+        extruded: false,
+        pickable: true,
+        onClick: ({ object }) => {
+          if (object) openSelection(object.cell_id);
+        },
+        updateTriggers: { getFillColor: [onPred], getLineColor: [onPred] },
+      }),
       // The live Deepfire feed: what is burning right now, and what its spread
       // projection puts at risk. Arrives as H3 res-8 and is rasterised onto this grid
       // before it gets here.
       new QuadkeyLayer<Cell>({
         id: 'live-fire',
-        data: liveCells,
+        data: onPred ? [] : liveCells,
         getQuadkey: (d) => d.cell_id,
         getFillColor: (d) => LIVE_FILL[liveStatus.get(d.cell_id) ?? 'risk'],
         getLineColor: (d) => LIVE_STROKE[liveStatus.get(d.cell_id) ?? 'risk'],
@@ -248,7 +274,7 @@ export default function App() {
       // unlit and not pulsing — it is where the fire HAS been, not where it is.
       new QuadkeyLayer<CellState>({
         id: 'sim-burned',
-        data: sim.burned,
+        data: onPred ? [] : sim.burned,
         getQuadkey: sim.cellId,
         getFillColor: BURNED_FILL,
         getLineColor: BURNED_STROKE,
@@ -263,7 +289,7 @@ export default function App() {
       // screen that moves without the operator asking (spec.md §4.8).
       new QuadkeyLayer<CellState>({
         id: 'sim-burning',
-        data: sim.burning,
+        data: onPred ? [] : sim.burning,
         getQuadkey: sim.cellId,
         // The Engine's per-cell intensity drives the alpha: the head of the front
         // reads hotter than the flanks, which is the shape an operator looks for.
@@ -281,7 +307,7 @@ export default function App() {
       // map that is good news, and warm is reserved for what burns.
       new QuadkeyLayer<CellState>({
         id: 'sim-protected',
-        data: sim.protectedCells,
+        data: onPred ? [] : sim.protectedCells,
         getQuadkey: sim.cellId,
         getFillColor: PROTECTED_FILL,
         getLineColor: PROTECTED_STROKE,
@@ -292,7 +318,7 @@ export default function App() {
         pickable: false,
       }),
     ],
-    [sim, tick, liveCells, liveStatus, quadkeyToFireId],
+    [sim, tick, liveCells, liveStatus, quadkeyToFireId, onPred],
   );
 
   return (
@@ -342,6 +368,7 @@ export default function App() {
         route={route}
         activeFires={simulating ? (sim.onFire ? 1 : 0) : (live.data?.activeCellIds.length ?? 0)}
         liveFires={liveFires}
+        riskCells={RISK_CELLS.length}
         live={simulating ? {
           areaHa: sim.burnedAreaHa,
           minutes: sim.minutes,

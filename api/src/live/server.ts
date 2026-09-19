@@ -35,6 +35,7 @@ async function pollOnce(): Promise<void> {
       ? { ...cache, lastError: message }
       : {
         state: {
+          fires: [],
           activeCellIds: [],
           riskCellIds: [],
           hotspots: [],

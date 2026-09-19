@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react';
 
 import { analysisFor } from '../mocks/analysis.mock';
 import { fireById } from '../mocks/fires.mock';
-import type { Fire } from '../mocks/types';
-import type { LiveFireDetail } from '../live/groupFires';
+import { predictionFor, preventiveActionsFor } from '../mocks/predictions.mock';
+import type { Fire, Prediction } from '../mocks/types';
+import type { LiveFireSummary } from '../live/types';
 import { useFireActions } from '../live/useFireActions';
 import { ActionsCard } from './ActionsCard';
 import { FireInfoCard } from './FireInfoCard';
 import { LiveFireInfoCard } from './LiveFireInfoCard';
 import { Legend } from './Legend';
 import { PrioritiesCard } from './PrioritiesCard';
+import { RiskCard } from './RiskCard';
 import { MENU_STORAGE_KEY, readCollapsed } from './menuStorage';
 import { SideMenu } from './SideMenu';
+import { Surface } from './Surface';
 import { ArrowLeftIcon } from './icons';
 import { clearSelection, type Route } from './route';
 
@@ -44,6 +47,7 @@ export function Shell({
   onToggleSimulation,
   live,
   liveFires,
+  riskCells = 0,
 }: {
   route: Route;
   activeFires: number;
@@ -56,12 +60,22 @@ export function Shell({
    * detection source and no population at risk. See FireInfoCard.
    */
   live?: LiveFire;
-  /** Real Deepfire detections clicked on the map — see live/groupFires.ts. */
-  liveFires?: readonly LiveFireDetail[];
+  /** Real Deepfire detections clicked on the map — see live/types.ts LiveFireSummary. */
+  liveFires?: readonly LiveFireSummary[];
+  /** How many cells carry risk on PRED. Drives the empty state, nothing else. */
+  riskCells?: number;
 }) {
-  const fire = fireById(route.selection);
-  const liveFire = fire ? null : (liveFires?.find((f) => f.id === route.selection) ?? null);
-  const open = fire !== null || liveFire !== null;
+  /*
+   * Three things can be selected, and which one depends on the page. ACTUAL opens a
+   * fire — mocked or a real Deepfire detection. PRED opens a cell, because risk is a
+   * per-cell number and there is no incident to group (UX.md §7).
+   */
+  const onPred = route.page === 'pred';
+  const fire = onPred ? null : fireById(route.selection);
+  const liveFire =
+    onPred || fire ? null : (liveFires?.find((f) => f.id === route.selection) ?? null);
+  const prediction = onPred ? predictionFor(route.selection) : null;
+  const open = fire !== null || liveFire !== null || prediction !== null;
 
   /*
    * The legend needs the menu's width too, so it can step aside instead of sitting
@@ -86,10 +100,10 @@ export function Shell({
    * ancestor from assistive technology is blocked by the browser. `inert` already does
    * both jobs — it removes the subtree from the accessibility tree and drops the focus.
    */
-  // Either a mock Fire or a real LiveFireDetail — never both, route.selection matches
+  // Either a mock Fire or a real LiveFireSummary — never both, route.selection matches
   // at most one of the two lookups above. `cellIds` only exists on the live shape, so
   // it doubles as the discriminant below instead of carrying a separate flag.
-  const selected = fire ?? liveFire;
+  const selected = fire ?? liveFire ?? prediction;
   const [shown, setShown] = useState(selected);
   // Entering is immediate and adjusted during render, not in an effect: waiting for an
   // effect would cost one frame with the panel empty.
@@ -100,11 +114,20 @@ export function Shell({
     return () => window.clearTimeout(timer);
   }, [selected]);
 
+  // `cellIds` only exists on a live detection and `risk_score` only on a prediction, so
+  // the shapes discriminate themselves without carrying a separate kind flag.
   const shownIsLive = shown !== null && 'cellIds' in shown;
-  const { analysis: liveAnalysis, loading: liveLoading } = useFireActions(
-    shownIsLive ? (shown as LiveFireDetail) : null,
+  const shownIsRisk = shown !== null && 'risk_score' in shown;
+  const { analysis: liveAnalysis, loading: liveLoading, error: liveError } = useFireActions(
+    shownIsLive ? (shown as LiveFireSummary) : null,
   );
-  const analysis = shownIsLive ? liveAnalysis : shown ? analysisFor(shown.id) : null;
+  const analysis = shownIsLive
+    ? liveAnalysis
+    : shownIsRisk
+      ? preventiveActionsFor((shown as Prediction).cell_id)
+      : shown
+        ? analysisFor(shown.id)
+        : null;
 
   // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
@@ -134,10 +157,25 @@ export function Shell({
           (UX.md §0, rule 2) — and it leaves to its own side, which is where the actions
           column comes in. */}
       <Legend
+        page={route.page}
         className={`absolute top-4 right-4 z-10 transition-[opacity,transform] ${
           open ? 'pointer-events-none translate-x-8 opacity-0' : 'translate-x-0 opacity-100'
         }`}
       />
+
+      {/*
+        Never blank. A forecast with nothing above the threshold is good news and has to
+        say so — an empty screen reads as a broken feed, which is the opposite message
+        (UX.md §4).
+      */}
+      {onPred && !open && riskCells === 0 && (
+        <Surface as="aside" className="absolute bottom-4 left-24 z-10">
+          <p className="text-label text-text">No significant risk</p>
+          <p className="mt-1 text-meta text-muted">
+            Nothing above 25% in the next 24 h
+          </p>
+        </Surface>
+      )}
 
       {shown && (
         <>
@@ -159,7 +197,9 @@ export function Shell({
               </button>
             </div>
             {shownIsLive ? (
-              <LiveFireInfoCard fire={shown as LiveFireDetail} />
+              <LiveFireInfoCard fire={shown as LiveFireSummary} />
+            ) : shownIsRisk ? (
+              <RiskCard prediction={shown as Prediction} />
             ) : (
               shown && <FireInfoCard fire={shown as Fire} live={live} />
             )}
@@ -175,12 +215,21 @@ export function Shell({
             {shownIsLive && liveLoading && (
               <p className="p-4 text-meta text-muted">Generating recommended actions…</p>
             )}
+            {shownIsLive && liveError && (
+              <p className="p-4 text-meta text-muted">Could not get AI actions: {liveError}</p>
+            )}
             {analysis && (
               <>
-                <ActionsCard analysis={analysis} />
-                {/* PrioritiesCard needs values_at_risk, which a live detection does not
-                    have yet (no Deepfire endpoint for it) — mock fires only. */}
-                {!shownIsLive && <PrioritiesCard fire={shown as Fire} analysis={analysis} />}
+                <ActionsCard
+                  analysis={analysis}
+                  title={shownIsRisk ? 'Preventive actions' : 'Actions'}
+                />
+                {/* No priorities card on PRED: with risk there is no front to attack in
+                    order (UX.md §7). And a live detection has no values_at_risk yet —
+                    Deepfire has no endpoint for it — so it is mock fires only. */}
+                {!shownIsLive && !shownIsRisk && (
+                  <PrioritiesCard fire={shown as Fire} analysis={analysis} />
+                )}
               </>
             )}
           </div>

@@ -62,13 +62,20 @@ function iconFor(actionId: string) {
  *
  * The rank opens the meta line. The numbering is real priority, not a bullet.
  */
-export function ActionsCard({ analysis }: { analysis: AIAnalysis }) {
+export function ActionsCard({
+  analysis,
+  title = 'Actions',
+}: {
+  analysis: AIAnalysis;
+  /** "Preventive actions" on PRED: nothing is burning there yet (UX.md §7). */
+  title?: string;
+}) {
   const actions = [...analysis.actions].sort((a, b) => a.rank - b.rank);
 
   return (
     <Surface padded={false} className="divide-y divide-line">
       <header className="flex items-baseline justify-between gap-4 p-4">
-        <SectionLabel>Actions</SectionLabel>
+        <SectionLabel>{title}</SectionLabel>
         <span className="text-meta text-muted">AI proposal</span>
       </header>
 

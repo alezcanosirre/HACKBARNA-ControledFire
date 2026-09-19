@@ -63,6 +63,28 @@ export interface Fire {
   values_at_risk: ValueAtRisk[];
 }
 
+/** spec.md §6.3 */
+export interface RiskDriver {
+  factor: string; // 'wind_speed' | 'fuel_dryness' | 'temperature' | ...
+  contribution: number; // 0–1, drives the bar
+  value: string; // already formatted: "38 km/h SW"
+}
+
+/** spec.md §6.3 */
+export interface Prediction {
+  cell_id: string;
+  risk_score: number; // 0–1
+  horizon_h: number; // 6 | 12 | 24 | 48
+  drivers: RiskDriver[];
+  rationale: string;
+  /**
+   * DEVIATION from spec §6.3, same reason as Fire.place: the contract carries no
+   * readable name and UX §5 forbids showing the raw cell id. Until the backend
+   * returns one, it lives here.
+   */
+  place: string;
+}
+
 /** spec.md §6.4 */
 export interface RankedAction {
   action_id: string;
