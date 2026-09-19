@@ -1,5 +1,5 @@
 import { fetchOgcFeatures } from "./ogcClient";
-import { BBOX_BCN_METRO } from "./bbox";
+import { BBOX_RMB } from "./bbox";
 import type { PointGeometry } from "./geometry";
 
 interface ClusterProperties {
@@ -28,9 +28,9 @@ function rawClusterId(id: string | undefined, featureId: string | undefined): st
   throw new Error("Deepfire cluster feature sin id");
 }
 
-export async function fetchActiveClustersInBcnMetro(): Promise<LiveCluster[]> {
+export async function fetchActiveClustersInRmb(): Promise<LiveCluster[]> {
   const body = await fetchOgcFeatures<ClusterProperties, PointGeometry>("deepfire:clusters", {
-    bbox: BBOX_BCN_METRO.join(","),
+    bbox: BBOX_RMB.join(","),
     "filter-lang": "cql2-text",
     filter: "active = true",
   });

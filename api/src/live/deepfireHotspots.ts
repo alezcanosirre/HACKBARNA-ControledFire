@@ -1,5 +1,5 @@
 import { fetchOgcFeatures } from "./ogcClient";
-import { BBOX_BCN_METRO } from "./bbox";
+import { BBOX_RMB } from "./bbox";
 import type { PointGeometry } from "./geometry";
 
 export type HotspotConfidence = "LOW" | "MEDIUM" | "HIGH";
@@ -25,9 +25,9 @@ export interface LiveHotspot {
   readonly fireRadiativePowerMw: number | null;
 }
 
-export async function fetchLiveHotspotsInBcnMetro(): Promise<LiveHotspot[]> {
+export async function fetchLiveHotspotsInRmb(): Promise<LiveHotspot[]> {
   const body = await fetchOgcFeatures<HotspotProperties, PointGeometry>("deepfire:hotspots", {
-    bbox: BBOX_BCN_METRO.join(","),
+    bbox: BBOX_RMB.join(","),
     "filter-lang": "cql2-text",
     filter: "active = true",
   });

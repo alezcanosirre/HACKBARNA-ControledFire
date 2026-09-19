@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
 import { FlyToInterpolator, type MapViewState } from '@deck.gl/core';
-import { H3HexagonLayer, QuadkeyLayer } from '@deck.gl/geo-layers';
+import { QuadkeyLayer } from '@deck.gl/geo-layers';
 import { BASEMAP, FOCUS_MS, VIEW_RMB } from './map/constants';
 import { PRED_CELLS, type Cell } from './map/grid';
 import { STATUS_FILL, STATUS_STROKE, pulsed } from './map/colors';
@@ -12,6 +12,7 @@ import type { CellState } from '../../api/src/types';
 import { SIM_FIRE_ID, useSimulation } from './engine/useSimulation';
 import { useLiveFireState } from './live/useLiveFireState';
 import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
+import { quadkeysForH3Cells } from './live/h3ToQuadkey';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
 
@@ -86,10 +87,19 @@ export default function App() {
   const [simulating, setSimulating] = useState(false);
   const sim = useSimulation(simulating);
 
-  const liveStatus = useMemo(
-    () => statusFromLiveCells(live.data?.activeCellIds ?? [], live.data?.riskCellIds ?? []),
-    [live.data],
-  );
+  /*
+   * Deepfire answers in H3; this map is drawn on quadkeys. The conversion happens right
+   * here at the edge (see live/h3ToQuadkey.ts) so that from this line on there is one
+   * grid on the screen and not two — a hexagon over a square lattice reads as a
+   * rendering bug, not as a second data source.
+   */
+  const liveStatus = useMemo(() => {
+    const active = quadkeysForH3Cells(live.data?.activeCellIds ?? []);
+    const contained = quadkeysForH3Cells(live.data?.containedCellIds ?? []);
+    const risk = quadkeysForH3Cells(live.data?.riskCellIds ?? []);
+    return statusFromLiveCells(active, contained, risk);
+  }, [live.data]);
+
   // Only the cells that have something to say. The full mesh is never generated at this
   // resolution — see spec.md §4.2: detail exists around a fire, not across the region.
   const liveCells = useMemo(
@@ -182,20 +192,18 @@ export default function App() {
         pickable: false,
       }),
       // The live Deepfire feed: what is burning right now, and what its spread
-      // projection puts at risk. H3 res-8, so hexagons over the quadkey lattice — the
-      // shape is the backend's, and pretending otherwise would be resampling real data
-      // to make it prettier.
-      new H3HexagonLayer<Cell>({
+      // projection puts at risk. Arrives as H3 res-8 and is rasterised onto this grid
+      // before it gets here.
+      new QuadkeyLayer<Cell>({
         id: 'live-fire',
         data: liveCells,
-        getHexagon: (d) => d.cell_id,
+        getQuadkey: (d) => d.cell_id,
         getFillColor: (d) => LIVE_FILL[liveStatus.get(d.cell_id) ?? 'risk'],
         getLineColor: (d) => LIVE_STROKE[liveStatus.get(d.cell_id) ?? 'risk'],
         lineWidthMinPixels: 1,
         filled: true,
         stroked: true,
         extruded: false,
-        coverage: 0.94,
         pickable: false,
         updateTriggers: { getFillColor: [liveStatus], getLineColor: [liveStatus] },
       }),

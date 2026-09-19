@@ -14,6 +14,7 @@ export interface LiveHotspot {
 
 export interface LiveFireState {
   readonly activeCellIds: readonly string[]; // res-8, ardiendo AHORA
+  readonly containedCellIds: readonly string[]; // res-8, activo pero sin ver desde hace horas
   readonly riskCellIds: readonly string[]; // res-8, riesgo próximas horas
   readonly hotspots: readonly LiveHotspot[];
   readonly fetchedAt: number;

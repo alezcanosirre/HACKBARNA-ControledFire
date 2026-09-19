@@ -1,5 +1,5 @@
 import { fetchOgcFeatures } from "./ogcClient";
-import { BBOX_BCN_METRO } from "./bbox";
+import { BBOX_RMB } from "./bbox";
 import type { MultiPolygonGeometry } from "./geometry";
 
 interface PerimeterProperties {
@@ -13,11 +13,11 @@ export interface LivePerimeter {
   readonly geometry: MultiPolygonGeometry;
 }
 
-export async function fetchActivePerimetersInBcnMetro(): Promise<LivePerimeter[]> {
+export async function fetchActivePerimetersInRmb(): Promise<LivePerimeter[]> {
   const body = await fetchOgcFeatures<PerimeterProperties, MultiPolygonGeometry>(
     "deepfire:satellite-perimeters",
     {
-      bbox: BBOX_BCN_METRO.join(","),
+      bbox: BBOX_RMB.join(","),
       "filter-lang": "cql2-text",
       filter: "active = true",
     },
