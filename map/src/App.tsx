@@ -1,5 +1,7 @@
 import { Map } from 'react-map-gl/maplibre';
 import { BASEMAP, VIEW_CATALUNYA } from './map/constants';
+import { PRED_CELLS } from './map/grid';
+console.log('celdas res 6:', PRED_CELLS.length, PRED_CELLS[0]);
 
 export default function App() {
   return (
