@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
 import { FlyToInterpolator, type MapViewState } from '@deck.gl/core';
-import { QuadkeyLayer } from '@deck.gl/geo-layers';
+import { H3HexagonLayer, QuadkeyLayer } from '@deck.gl/geo-layers';
 import { BASEMAP, FOCUS_MS, VIEW_RMB } from './map/constants';
 import { PRED_CELLS, type Cell } from './map/grid';
 import { STATUS_FILL, STATUS_STROKE, pulsed } from './map/colors';
@@ -10,6 +10,8 @@ import { usePulse } from './map/pulse';
 import { clampToArea, focusOn } from './map/view';
 import type { CellState } from '../../api/src/types';
 import { SIM_FIRE_ID, useSimulation } from './engine/useSimulation';
+import { useLiveFireState } from './live/useLiveFireState';
+import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
 
@@ -70,9 +72,30 @@ export default function App() {
   // a single projection, not a list — so there is exactly one id to select.
   const selectedFire = route.page === 'actual' ? route.selection : null;
 
-  // The live fire, straight out of the Engine. No HTTP: api/ is a pure TS library and
-  // this hook is the timer that gives it a clock. See engine/useSimulation.ts.
-  const sim = useSimulation();
+  /*
+   * Two sources, and they are not the same kind of thing.
+   *
+   * ACTUAL shows what is really burning: the Deepfire feed, polled through the local
+   * proxy (api/src/live/server.ts, started with `npm run live` inside api/). Its cells
+   * are H3 res-8, which is why they get their own layer instead of the quadkey one.
+   *
+   * SIMULATION runs the Fire Engine. It stays stopped until someone presses the button:
+   * invented fire must never appear on a screen whose claim is that its fire is real.
+   */
+  const live = useLiveFireState();
+  const [simulating, setSimulating] = useState(false);
+  const sim = useSimulation(simulating);
+
+  const liveStatus = useMemo(
+    () => statusFromLiveCells(live.data?.activeCellIds ?? [], live.data?.riskCellIds ?? []),
+    [live.data],
+  );
+  // Only the cells that have something to say. The full mesh is never generated at this
+  // resolution — see spec.md §4.2: detail exists around a fire, not across the region.
+  const liveCells = useMemo(
+    () => [...liveStatus.keys()].map((cell_id) => ({ cell_id })),
+    [liveStatus],
+  );
 
   // Pulse of the burning cells. See spec.md §4.8.
   const tick = usePulse(sim.onFire);
@@ -158,6 +181,24 @@ export default function App() {
         extruded: false,
         pickable: false,
       }),
+      // The live Deepfire feed: what is burning right now, and what its spread
+      // projection puts at risk. H3 res-8, so hexagons over the quadkey lattice — the
+      // shape is the backend's, and pretending otherwise would be resampling real data
+      // to make it prettier.
+      new H3HexagonLayer<Cell>({
+        id: 'live-fire',
+        data: liveCells,
+        getHexagon: (d) => d.cell_id,
+        getFillColor: (d) => LIVE_FILL[liveStatus.get(d.cell_id) ?? 'risk'],
+        getLineColor: (d) => LIVE_STROKE[liveStatus.get(d.cell_id) ?? 'risk'],
+        lineWidthMinPixels: 1,
+        filled: true,
+        stroked: true,
+        extruded: false,
+        coverage: 0.94,
+        pickable: false,
+        updateTriggers: { getFillColor: [liveStatus], getLineColor: [liveStatus] },
+      }),
       // The scar: cells the fire has already gone through. Painted under the flames,
       // unlit and not pulsing — it is where the fire HAS been, not where it is.
       new QuadkeyLayer<CellState>({
@@ -206,7 +247,7 @@ export default function App() {
         pickable: false,
       }),
     ],
-    [sim, tick],
+    [sim, tick, liveCells, liveStatus],
   );
 
   return (
@@ -254,8 +295,8 @@ export default function App() {
       */}
       <Shell
         route={route}
-        activeFires={sim.onFire ? 1 : 0}
-        live={{
+        activeFires={simulating ? (sim.onFire ? 1 : 0) : (live.data?.activeCellIds.length ?? 0)}
+        live={simulating ? {
           areaHa: sim.burnedAreaHa,
           minutes: sim.minutes,
           burningCells: sim.burning.length,
@@ -267,7 +308,9 @@ export default function App() {
             wind_speed_kmh: sim.environment.wind.speed,
             wind_dir_deg: sim.environment.wind.direction,
           },
-        }}
+        } : undefined}
+        simulating={simulating}
+        onToggleSimulation={() => setSimulating((v) => !v)}
       />
     </div>
   );

@@ -36,10 +36,15 @@ const DURATION_MS = 400;
 export function Shell({
   route,
   activeFires,
+  simulating,
+  onToggleSimulation,
   live,
 }: {
   route: Route;
   activeFires: number;
+  /** Whether the Fire Engine is running. ACTUAL is live data; this is the other source. */
+  simulating: boolean;
+  onToggleSimulation: () => void;
   /**
    * What the Engine knows, passed straight down to the information card. Everything
    * else in the detail panel is still mocked — the Engine has no place names, no
@@ -103,6 +108,8 @@ export function Shell({
         activeFires={activeFires}
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
+        simulating={simulating}
+        onToggleSimulation={onToggleSimulation}
       />
 
       {/* Top right, opposite the menu, so neither one has to dodge the other: the

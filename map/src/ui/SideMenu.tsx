@@ -25,7 +25,15 @@ const ITEMS: Item[] = [
  * `inert` already removes the menu from the accessibility tree and from the tab order,
  * and aria-hiding a subtree that still holds focus is blocked by the browser.
  */
-export function SideMenu({ page, hidden, activeFires, collapsed, onToggle }: {
+export function SideMenu({
+  page,
+  hidden,
+  activeFires,
+  collapsed,
+  onToggle,
+  simulating,
+  onToggleSimulation,
+}: {
   page: Page;
   hidden: boolean;
   /** The live counter. It is the figure that says whether this screen needs attention now. */
@@ -33,6 +41,9 @@ export function SideMenu({ page, hidden, activeFires, collapsed, onToggle }: {
   /** Shell owns the width: the legend has to step aside from the menu. */
   collapsed: boolean;
   onToggle: () => void;
+  /** The Fire Engine is running. ACTUAL's own data is the live feed, not this. */
+  simulating: boolean;
+  onToggleSimulation: () => void;
 }) {
   return (
     <nav
@@ -107,20 +118,38 @@ export function SideMenu({ page, hidden, activeFires, collapsed, onToggle }: {
       {/*
         SIMULATION is a different kind of thing from the two above: it does not
         navigate, it runs. Hence the bottom of the menu, separated by a rule.
-        It is deliberately NEUTRAL and inert: the red you asked for is still pending a
-        decision in UX.md §9, and until that closes it is neither painted nor wired.
+
+        It starts and stops the Fire Engine. Everything else on ACTUAL is the live
+        Deepfire feed, so this button is the line between what is really burning and
+        what is being modelled — which is exactly why it cannot run on its own.
+
+        Still NEUTRAL in colour: the red is pending UX.md §9. Now that the button does
+        something, option C in that section becomes the obvious one — the frame goes red
+        while a simulation is running, and red then means "none of this is real".
       */}
       <div className="mt-auto border-t border-line pt-3">
         <button
           type="button"
-          disabled
-          title="Pending decision (UX.md §9)"
-          className={`flex w-full cursor-not-allowed items-center gap-3 rounded-sm py-3 text-muted opacity-60 ${
+          onClick={onToggleSimulation}
+          aria-pressed={simulating}
+          title={collapsed ? (simulating ? 'Stop simulation' : 'Run simulation') : undefined}
+          className={`relative flex w-full items-center gap-3 rounded-sm py-3 text-label font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text ${
             collapsed ? 'justify-center px-2' : 'px-4'
+          } ${
+            simulating
+              ? 'bg-surface-2 text-text'
+              : 'text-muted hover:bg-surface-2/60 hover:text-text'
           }`}
         >
+          {/* Running is marked by shape as well as fill, same rule as the nav items. */}
+          {simulating && (
+            <span
+              aria-hidden="true"
+              className="absolute top-2 bottom-2 left-0 w-0.5 rounded-sm bg-text"
+            />
+          )}
           <PlayIcon />
-          {!collapsed && <span className="text-label font-medium">Simulation</span>}
+          {!collapsed && <span>{simulating ? 'Stop simulation' : 'Simulation'}</span>}
         </button>
       </div>
     </nav>

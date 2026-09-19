@@ -14,6 +14,11 @@ import { createAnchor } from './anchor';
  *
  * **The Engine has no clock.** It never advances on its own; that would break its
  * purity. The real-time feel is produced here, by a timer that keeps sending WAIT.
+ *
+ * It only runs when asked. ACTUAL shows the live Deepfire feed — what is really burning
+ * right now — and a simulation running underneath it unasked would be putting invented
+ * fire on a screen whose whole claim is that its fire is real. The Engine starts when
+ * someone presses SIMULATION, and not before.
  */
 
 /** Simulated minutes per tick. MUST be a multiple of 5 (api/spec.md): with less, the
@@ -40,7 +45,7 @@ export interface SimulationView {
   readonly fireBounds: readonly [[number, number], [number, number]];
 }
 
-export function useSimulation(): SimulationView {
+export function useSimulation(running: boolean): SimulationView {
   const [state, setState] = useState<SimulationState>(() =>
     createInitialState(collserolaScenario),
   );
@@ -50,14 +55,24 @@ export function useSimulation(): SimulationView {
     [],
   );
 
+  // Every run starts at minute zero, adjusted during render rather than in an effect so
+  // the first frame after pressing play is already the fresh state. Pressing play twice
+  // has to give the same run twice — that is the point of a pure, deterministic Engine.
+  const [wasRunning, setWasRunning] = useState(running);
+  if (running !== wasRunning) {
+    setWasRunning(running);
+    if (running) setState(createInitialState(collserolaScenario));
+  }
+
   useEffect(() => {
+    if (!running) return;
     const timer = window.setInterval(() => {
       // Functional update: the interval is set up once and its closure would otherwise
       // keep simulating from the state it saw on the first render, forever.
       setState((prev) => step(prev, [{ type: 'WAIT', minutes: SIM_MINUTES_PER_TICK }]));
     }, REAL_MS_PER_TICK);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [running]);
 
   return useMemo(() => {
     const burning: CellState[] = [];
@@ -73,15 +88,15 @@ export function useSimulation(): SimulationView {
     const extent = burning.length > 0 ? burning : burned;
 
     return {
-      burning,
-      burned,
-      protectedCells,
+      burning: running ? burning : [],
+      burned: running ? burned : [],
+      protectedCells: running ? protectedCells : [],
       burnedAreaHa: state.fire.burnedAreaHa,
       minutes: state.time.current,
-      onFire: burning.length > 0,
+      onFire: running && burning.length > 0,
       environment: state.environment,
       cellId: (cell: CellState) => anchor.cellId(cell.position),
       fireBounds: anchor.boundsOf(extent.map((c) => c.position)),
     };
-  }, [state, anchor]);
+  }, [state, anchor, running]);
 }
