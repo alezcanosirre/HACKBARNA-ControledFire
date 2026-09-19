@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { HotspotsResponse, LiveHotspot } from './types';
+import type { LiveFireState } from './types';
 
 // El servidor local (api/src/live/server.ts) ya consulta Deepfire en
 // segundo plano cada POLL_INTERVAL_MS (2 min por defecto) y cachea el
@@ -7,44 +7,31 @@ import type { HotspotsResponse, LiveHotspot } from './types';
 // rate limit de Deepfire. Solo hace que "actualizado hace..." se sienta vivo.
 const POLL_MS = 15_000;
 
-interface LiveHotspotsState {
-  hotspots: readonly LiveHotspot[];
-  fetchedAt: number | null;
+interface State {
+  data: LiveFireState | null;
   // Fallo de red hablando con el proxy local (proxy caído, etc).
   error: string | null;
-  // El proxy respondió pero su último ciclo contra Deepfire falló —
-  // `hotspots`/`fetchedAt` siguen siendo el último dato bueno conocido.
+  // El proxy respondió pero su último ciclo contra Deepfire falló — `data`
+  // sigue siendo el último dato bueno conocido.
   stale: boolean;
   loading: boolean;
 }
 
-/** Sondea /api/hotspots (proxy local a Deepfire) cada POLL_MS. */
-export function useLiveHotspots(): LiveHotspotsState {
-  const [state, setState] = useState<LiveHotspotsState>({
-    hotspots: [],
-    fetchedAt: null,
-    error: null,
-    stale: false,
-    loading: true,
-  });
+/** Sondea /api/live-fires (proxy local a Deepfire) cada POLL_MS. */
+export function useLiveFireState(): State {
+  const [state, setState] = useState<State>({ data: null, error: null, stale: false, loading: true });
 
   useEffect(() => {
     let cancelled = false;
 
     async function poll() {
       try {
-        const res = await fetch('/api/hotspots');
+        const res = await fetch('/api/live-fires');
         if (res.status === 503) return; // primer ciclo del servidor aún en curso
         if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-        const body = (await res.json()) as HotspotsResponse;
+        const body = (await res.json()) as LiveFireState;
         if (!cancelled) {
-          setState({
-            hotspots: body.hotspots,
-            fetchedAt: body.fetchedAt,
-            error: null,
-            stale: body.error !== null,
-            loading: false,
-          });
+          setState({ data: body, error: null, stale: body.error !== null, loading: false });
         }
       } catch (err) {
         if (!cancelled) {

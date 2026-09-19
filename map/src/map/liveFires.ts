@@ -1,24 +1,18 @@
-import { latLngToCell } from 'h3-js';
-import { RES_PRED } from './constants';
 import type { CellStatus } from './colors';
-import type { LiveHotspot } from '../live/types';
 
 /**
- * Un hotspot real "enciende" la celda res-6 que lo contiene. Es una
- * aproximación deliberadamente burda para el modo ACTUAL a esta resolución
- * (~36 km²/celda) — cuando se pase a pintar el halo de detalle (res 8,
- * `cellsAroundFire`) esto deja de hacer falta.
+ * activeCellIds/riskCellIds ya vienen calculadas por el backend
+ * (intersección del perímetro real / la simulación de propagación con el
+ * grid H3, ver api/src/live/liveFireState.ts) — aquí solo se combinan en
+ * un único mapa de estado. 'active' pisa a 'risk' si una celda cae en las
+ * dos listas (no debería pasar, el backend ya las excluye, pero por si acaso).
  */
-export function statusFromHotspots(
-  hotspots: readonly LiveHotspot[],
+export function statusFromLiveCells(
+  activeCellIds: readonly string[],
+  riskCellIds: readonly string[],
 ): ReadonlyMap<string, CellStatus> {
   const statuses = new Map<string, CellStatus>();
-  for (const h of hotspots) {
-    const cellId = latLngToCell(h.lat, h.lng, RES_PRED);
-    // HIGH confidence pisa a MEDIUM/LOW si dos hotspots caen en la misma celda.
-    if (h.confidence === 'HIGH' || !statuses.has(cellId)) {
-      statuses.set(cellId, 'active');
-    }
-  }
+  for (const id of riskCellIds) statuses.set(id, 'risk');
+  for (const id of activeCellIds) statuses.set(id, 'active');
   return statuses;
 }
