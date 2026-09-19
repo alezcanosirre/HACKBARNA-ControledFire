@@ -1,6 +1,7 @@
 import "./loadEnv";
 import { createServer } from "node:http";
 import { buildLiveFireState, type LiveFireState } from "./liveFireState";
+import { getFireActions, isValidClusterId, NotFoundError } from "./fireActions";
 
 const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
 // Satélite, no push: clusters/perímetros/hotspots no llegan más rápido que
@@ -50,9 +51,13 @@ async function pollOnce(): Promise<void> {
 void pollOnce();
 setInterval(pollOnce, POLL_INTERVAL_MS);
 
+function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(body));
+}
+
 const server = createServer((req, res) => {
-  // CORS abierto — es un proxy local de solo lectura para el dev server de
-  // Vite (localhost:5173), no expone nada que no esté ya en /api/live-fires.
+  // CORS abierto — es un proxy local para el dev server de Vite (localhost:5173), no
+  // expone nada que no esté ya accesible a través de sus propios endpoints.
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   if (req.method === "OPTIONS") {
@@ -60,23 +65,44 @@ const server = createServer((req, res) => {
     return;
   }
 
-  if (req.method !== "GET" || !req.url?.startsWith("/api/live-fires")) {
-    res.writeHead(404, { "Content-Type": "application/json" }).end(
-      JSON.stringify({ error: "not found" }),
-    );
+  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+
+  if (req.method === "GET" && url.pathname === "/api/live-fires") {
+    if (!cache) {
+      sendJson(res, 503, { error: "primera consulta a Deepfire todavía en curso" });
+      return;
+    }
+    sendJson(res, 200, { ...cache.state, error: cache.lastError });
     return;
   }
 
-  if (!cache) {
-    res.writeHead(503, { "Content-Type": "application/json" }).end(
-      JSON.stringify({ error: "primera consulta a Deepfire todavía en curso" }),
-    );
+  // POST /api/live-fires/:id/actions — genera (o sirve de caché) la propuesta de
+  // acciones de Nebius para un incendio real. Bajo demanda, no forma parte del ciclo
+  // de refresco de arriba: el id llega por la URL, el cuerpo de la petición se ignora
+  // porque el servidor ya sabe cómo traer los datos de ese cluster desde Deepfire.
+  const actionsMatch = url.pathname.match(/^\/api\/live-fires\/([^/]+)\/actions$/);
+  if (req.method === "POST" && actionsMatch) {
+    const clusterId = decodeURIComponent(actionsMatch[1]);
+    if (!isValidClusterId(clusterId)) {
+      sendJson(res, 400, { error: "id de incendio inválido" });
+      return;
+    }
+
+    getFireActions(clusterId)
+      .then((analysis) => sendJson(res, 200, analysis))
+      .catch((err) => {
+        if (err instanceof NotFoundError) {
+          sendJson(res, 404, { error: err.message });
+          return;
+        }
+        const message = err instanceof Error ? err.message : "unknown error";
+        console.error(`[live] fire-actions para ${clusterId} falló:`, message);
+        sendJson(res, 502, { error: message });
+      });
     return;
   }
 
-  res.writeHead(200, { "Content-Type": "application/json" }).end(
-    JSON.stringify({ ...cache.state, error: cache.lastError }),
-  );
+  sendJson(res, 404, { error: "not found" });
 });
 
 server.listen(PORT, () => {

@@ -5,12 +5,32 @@ import type { MultiPolygonGeometry } from "./geometry";
 interface PerimeterProperties {
   readonly cluster_id: string;
   readonly computed_at: string;
+  readonly area_m2: number | null;
+  readonly perimeter_m: number | null;
+  readonly n_hotspots: number;
 }
 
 export interface LivePerimeter {
   readonly clusterId: string;
   readonly computedAt: string;
   readonly geometry: MultiPolygonGeometry;
+  readonly areaM2: number | null;
+  readonly perimeterM: number | null;
+  readonly nHotspots: number;
+}
+
+function toLivePerimeter(f: {
+  properties: PerimeterProperties;
+  geometry: MultiPolygonGeometry;
+}): LivePerimeter {
+  return {
+    clusterId: f.properties.cluster_id,
+    computedAt: f.properties.computed_at,
+    geometry: f.geometry,
+    areaM2: f.properties.area_m2,
+    perimeterM: f.properties.perimeter_m,
+    nHotspots: f.properties.n_hotspots,
+  };
 }
 
 export async function fetchActivePerimetersInRmb(): Promise<LivePerimeter[]> {
@@ -23,13 +43,7 @@ export async function fetchActivePerimetersInRmb(): Promise<LivePerimeter[]> {
     },
   );
 
-  return body.features
-    .filter((f) => f.geometry?.type === "MultiPolygon")
-    .map((f) => ({
-      clusterId: f.properties.cluster_id,
-      computedAt: f.properties.computed_at,
-      geometry: f.geometry,
-    }));
+  return body.features.filter((f) => f.geometry?.type === "MultiPolygon").map(toLivePerimeter);
 }
 
 /**
@@ -49,4 +63,21 @@ export function latestPerimeterPerCluster(
     }
   }
   return latest;
+}
+
+/** El snapshot de perímetro más reciente de un cluster concreto, o null si Deepfire
+ * todavía no le ha calculado ninguno. `clusterId` debe validarse como uuid antes de
+ * llamar (ver isUuid en fireActions.ts). */
+export async function fetchLatestPerimeterByCluster(clusterId: string): Promise<LivePerimeter | null> {
+  const body = await fetchOgcFeatures<PerimeterProperties, MultiPolygonGeometry>(
+    "deepfire:satellite-perimeters",
+    {
+      "filter-lang": "cql2-text",
+      filter: `cluster_id = '${clusterId}'`,
+    },
+  );
+
+  const perimeters = body.features.filter((f) => f.geometry?.type === "MultiPolygon").map(toLivePerimeter);
+
+  return latestPerimeterPerCluster(perimeters).get(clusterId) ?? null;
 }
