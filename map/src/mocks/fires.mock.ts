@@ -140,6 +140,15 @@ export const FIRES_MOCK: Fire[] = [
 
 const BY_ID = new Map(FIRES_MOCK.map((f) => [f.id, f]));
 
+/**
+ * The running simulation is one fire, and it is the Collserola one: `SimulationState`
+ * carries a single `fire` projection, not a list, so the Engine's scenario id resolves
+ * to this mock's detail. Everything the Engine does provide — hectares, elapsed time,
+ * cell status — overrides the mock at the point of use; what stays mocked is what the
+ * Engine has no model for: the place name, the detection source, the values at risk.
+ */
+BY_ID.set('collserola-v1', FIRES_MOCK[0]);
+
 /** Detail for the selected fire, or null if the map sends an id that is not mocked. */
 export function fireById(id: string | null): Fire | null {
   return id ? (BY_ID.get(id) ?? null) : null;

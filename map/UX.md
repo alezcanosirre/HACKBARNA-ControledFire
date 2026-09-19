@@ -204,18 +204,24 @@ información. En este orden, que es el de spec §5.2:
 5. Las tres pastillas de zona debajo de la tarjeta, como en la pizarra
    («Cuadrado – Zona (Habitado, bosque)»).
 
-**Derecha arriba, 360px — ACCIONES.** Una tarjeta con la lista ordenada. Arriba del todo,
-el análisis de la IA en dos o tres líneas. Cada acción:
+**Derecha arriba, 360px — ACCIONES.** Una tarjeta con la lista ordenada, y nada más
+antes de ella. **El resumen de la IA no se pinta**: repetía en prosa lo que la tarjeta de
+la izquierda ya da como dato —viento, humedad, quién está a sotavento— y decirlo dos
+veces en la misma pantalla no aporta. El campo sigue en el contrato de `spec.md` §6.4.
+Cada acción es una fila:
 
-- Número de orden, que es prioridad real, no viñeta.
+- Tile de glifo a la izquierda, con el icono del tipo de acción. Monocromo.
 - El qué, en peso 500.
-- **El porqué, siempre visible, nunca plegado.** Una acción sin justificación es una
-  orden ciega y el operador no la sigue.
-- `[Aceptar]` y `[Descartar]` siempre a la vista, nunca tras un menú. La decisión humana
-  es el argumento del proyecto: tiene que estar en primer plano.
-- Aceptada → el botón se convierte en «Aceptada» en `--signal` con la hora al lado. El
-  verbo conserva la palabra.
+- Línea de meta debajo: número de orden —que es prioridad real, no viñeta—, urgencia,
+  tiempo estimado y recursos.
+- **El porqué, siempre visible, nunca plegado.** Sin la justificación la fila no sirve
+  de nada: es lo que permite juzgar la propuesta.
 - Pie de la tarjeta: el modelo que generó el análisis, en `meta`. Trazabilidad.
+
+**No hay botones de decisión.** Ni `[Aceptar]` ni `[Descartar]`. Esta tarjeta **solo
+muestra información**: quien decide es el bombero, sobre el terreno y con su criterio, y
+la pantalla no le pide que firme nada. Se aparta de `spec.md` §5.4 a propósito; ver
+`DESIGN.md` §7.
 
 **Derecha abajo — PRIORIDADES.** Segunda tarjeta, separada, como en la pizarra («Prios»).
 
@@ -268,8 +274,8 @@ Misma arquitectura que §5, distinto contenido.
   esta sección el número no es accionable: es solo un número.
 - Las barras de factores usan `--muted`, no cálidos. El riesgo ya está pintado en el mapa;
   repetir la gama aquí la devalúa.
-- Acciones preventivas a la derecha, misma mecánica de aceptar y descartar. Aquí no hay
-  tarjeta de prioridades: con riesgo no hay frente que atacar en orden.
+- Acciones preventivas a la derecha, con la misma fila que en §5 y también sin botones.
+  Aquí no hay tarjeta de prioridades: con riesgo no hay frente que atacar en orden.
 
 ---
 
@@ -357,8 +363,8 @@ Una sala de control se maneja con las manos ocupadas. Mínimos:
   de separación. Nunca `outline: none`.
 - `Esc` deselecciona la celda. Es el atajo del botón de volver.
 - `1` / `2` cambian de página, solo en reposo.
-- `Aceptar` y `Descartar` alcanzables con teclado sin pasar por el mapa. Si el operador
-  solo puede aceptar una acción con el ratón, la tesis del producto se cae en la práctica.
+- *(Queda sin objeto desde que el panel de acciones no lleva botones. Si vuelve alguna
+  decisión a la pantalla, vuelve también este mínimo.)*
 
 ---
 
@@ -375,6 +381,12 @@ Una sala de control se maneja con las manos ocupadas. Mínimos:
 
 ## Registro
 
+- 19 sep 2026 — Fuera el **resumen de la IA** de la cabecera del panel de acciones: era
+  la tarjeta de la izquierda contada otra vez.
+- 19 sep 2026 — **El panel de acciones pierde los botones de decisión.** En ACTUAL solo
+  muestra información; el criterio lo pone el bombero. Afecta a §5, §7 y §11, y se
+  aparta de `spec.md` §5.4, que sigue pidiéndolos.
+- 19 sep 2026 — La leyenda se mueve a **arriba a la derecha**, enfrente del menú.
 - 19 sep 2026 — La capa flotante pasa a **superficie clara** sobre el mapa oscuro; ver
   `DESIGN.md` §1. Afecta a §2, §3 y §8. Las tres salidas de §9 siguen abiertas, pero sus
   ratios eran contra la interfaz oscura y hay que recalcularlos.

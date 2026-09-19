@@ -181,6 +181,9 @@ const ANALYSES: AIAnalysis[] = [
 
 const BY_TARGET = new Map(ANALYSES.map((a) => [a.target_id, a]));
 
+// Same aliasing as fires.mock.ts: the running scenario is the Collserola fire.
+BY_TARGET.set('collserola-v1', ANALYSES[0]);
+
 /** The AI's analysis for a target, or null if none is mocked yet. */
 export function analysisFor(targetId: string | null): AIAnalysis | null {
   return targetId ? (BY_TARGET.get(targetId) ?? null) : null;

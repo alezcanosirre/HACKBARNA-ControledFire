@@ -77,12 +77,16 @@ que resistir porque no hay con qué.
 Ratios calculados, no estimados.
 
 **El primario se invierte con el sistema.** En la versión oscura era gris claro con texto
-oscuro; ahora es oscuro con texto claro. Es el mismo contraste dado la vuelta, y sigue
-siendo el elemento más pesado de la tarjeta, que es lo que tiene que ser el botón de
-*Aceptar*.
+oscuro; ahora es oscuro con texto claro. Es el mismo contraste dado la vuelta.
 
 **El verde de `--signal` baja a `#0F5C2C`.** El `#4ADE80` de la versión oscura da 1,61:1
 sobre una superficie clara y sería ilegible. Este pasa AAA y sigue leyéndose como verde.
+
+**Hoy `--primary`, `--on-primary` y `--signal` no los usa nadie.** Eran el botón de
+*Aceptar* y su estado de confirmación, y el panel de acciones ya no lleva botones (§7).
+Se quedan definidos: son el único botón primario y el único acento que este sistema
+permite, y el día que vuelva una decisión a la pantalla vuelven con ella. Un token sin
+uso no hace daño; inventarlo con prisas, sí.
 
 **`--line` contra `--surface` da 1,41:1 y eso está bien.** Un separador no es texto: no
 tiene que pasar AA, tiene que dividir sin gritar. Es incluso algo más visible que el
@@ -201,7 +205,7 @@ posiblemente de noche. Los mínimos no son negociables aquí.
 - **Área de pulsado:** 44×44px mínimo. Con la rejilla de 8px: 16px de padding horizontal
   y 12px vertical sobre un `label` de 14px da 44px justos.
 - **Foco:** contorno de 2px en `--text` con 2px de separación. Nunca `outline: none`.
-  Los botones de Aceptar y Descartar tienen que ser alcanzables con teclado.
+  Todo lo pulsable se alcanza con teclado sin pasar por el mapa.
 - **Nunca solo color.** Un estado se marca con texto o con forma además del color. El
   mapa lo respeta ya: una celda activa late, no solo es roja.
 
@@ -211,19 +215,39 @@ posiblemente de noche. Los mínimos no son negociables aquí.
 
 Para que no haya dudas en la pieza que más importa (spec §5.4):
 
-- Número de orden en `label`, en `--text-muted`. Es prioridad, no decoración.
+- Tile de 36px a la izquierda de cada fila: fondo `--surface-2`, borde 1px `--line`,
+  radio 5px, con el glifo del tipo de acción en `--text-muted`. Monocromo siempre: los
+  emoji de colores del diseño de referencia son cálidos y el cálido es dato de mapa.
 - Título de la acción en `body` peso 500, en `--text`.
+- Línea de meta en `meta`, en `--text-muted`, encabezada por el número de orden. Es
+  prioridad, no decoración. Nada de monoespaciada aquí, ver §2.
 - El *por qué* en `body` peso 400, en `--text-dim`. Siempre visible, nunca plegado.
-- **Aceptar**: fondo `--primary`, texto `--on-primary`, radio 5px.
-- **Descartar**: fondo transparente, borde 1px `--line`, texto `--text-muted`.
-- Aceptada: fondo transparente, texto `--signal`, con la hora en `meta` al lado.
-  El verbo conserva la palabra: *Aceptar* → *Aceptada*.
 - Separación entre acciones: línea de 1px, no espacio en blanco. Densidad.
+
+### Sin botones de decisión
+
+**En ACTUAL el panel solo muestra información.** No hay *Aceptar* ni *Descartar*, y por
+tanto tampoco registro de decisiones. Quien decide es el bombero, sobre el terreno y con
+su criterio; la pantalla le da la lista ordenada, el porqué de cada entrada y quién la ha
+escrito, y ahí acaba su trabajo. Pedirle que firme en la interfaz sería fingir que la
+decisión se toma aquí.
+
+Esto se aparta de `spec.md` §5.4, que pide los dos botones y el registro. La decisión es
+suya, tomada después de verlo en pantalla. `spec.md` no se ha tocado porque ese fichero
+lo lleva la otra sesión: hay que bajárselo a quien corresponda.
+
+Consecuencia sobre la paleta: `--signal` se queda **sin uso**. Era el color de «Aceptada»
+y no había otro. Se mantiene en §1 porque es el único acento que el sistema permite y
+volverá en cuanto haya un estado que confirmar, pero hoy no lo pinta nadie.
 
 ---
 
 ## Registro
 
+- 19 sep 2026 — **Fuera los botones de decisión del panel de acciones.** En ACTUAL solo
+  se muestra información; el criterio lo pone el bombero. Reescrito §7 con la anatomía
+  de fila (tile de glifo, meta encabezada por el orden) y con la ausencia de botones
+  declarada. `--signal` queda sin uso y se conserva igualmente.
 - 19 sep 2026 — **La interfaz pasa a clara.** Decisión suya: la capa flotante tiene que
   distinguirse del mapa oscuro, no fundirse con él. Se invierte §1 entero. El primario
   pasa de gris claro con texto oscuro a oscuro con texto claro; `--signal` baja de

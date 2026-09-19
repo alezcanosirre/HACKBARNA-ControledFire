@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { analysisFor } from '../mocks/analysis.mock';
 import { fireById } from '../mocks/fires.mock';
 import { ActionsCard } from './ActionsCard';
-import { type Decision, decisionKey } from './decisions';
 import { FireInfoCard } from './FireInfoCard';
 import { Legend } from './Legend';
 import { PrioritiesCard } from './PrioritiesCard';
@@ -11,6 +10,14 @@ import { MENU_STORAGE_KEY, readCollapsed } from './menuStorage';
 import { SideMenu } from './SideMenu';
 import { ArrowLeftIcon } from './icons';
 import { clearSelection, type Route } from './route';
+
+/** The subset of the Engine's state the detail panel can actually use. */
+export interface LiveFire {
+  areaHa: number;
+  minutes: number;
+  burningCells: number;
+  weather: { temp_c: number; humidity_pct: number; wind_speed_kmh: number; wind_dir_deg: number };
+}
 
 /** DESIGN.md §5. A single motion token for the whole interface. */
 const DURATION_MS = 400;
@@ -26,16 +33,22 @@ const DURATION_MS = 400;
  *   z-10  legend
  *   z-0   map (outside this component)
  */
-export function Shell({ route, activeFires }: { route: Route; activeFires: number }) {
+export function Shell({
+  route,
+  activeFires,
+  live,
+}: {
+  route: Route;
+  activeFires: number;
+  /**
+   * What the Engine knows, passed straight down to the information card. Everything
+   * else in the detail panel is still mocked — the Engine has no place names, no
+   * detection source and no population at risk. See FireInfoCard.
+   */
+  live?: LiveFire;
+}) {
   const fire = fireById(route.selection);
   const open = fire !== null;
-
-  /*
-   * The decision log lives here and not inside the card: it survives closing and
-   * reopening a fire, which is exactly what a coordinator does. It is lost on reload;
-   * persisting it is the backend's job (spec §6.5, POST .../decision).
-   */
-  const [decisions, setDecisions] = useState<Record<string, Decision>>({});
 
   /*
    * The legend needs the menu's width too, so it can step aside instead of sitting
@@ -54,6 +67,11 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
    * The detail stays mounted for 400 ms after deselecting so the exit can be seen. If
    * it unmounted at once, the cards would vanish in a blink while the menu slides back
    * in slowly, and the transition would be left half done.
+   *
+   * On the way out the columns get `inert` and nothing else. NOT `aria-hidden`: the
+   * back button holds focus at the moment it is pressed, and hiding a focused element's
+   * ancestor from assistive technology is blocked by the browser. `inert` already does
+   * both jobs — it removes the subtree from the accessibility tree and drops the focus.
    */
   const [shown, setShown] = useState(fire);
   // Entering is immediate and adjusted during render, not in an effect: waiting for an
@@ -102,7 +120,6 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
         <>
           {/* Left column, 360px: back at the very top, information underneath. */}
           <div
-            aria-hidden={!open}
             inert={!open || undefined}
             className={`absolute top-4 bottom-4 left-4 z-20 flex w-90 flex-col gap-4 overflow-y-auto transition-[opacity,transform] ${
               open ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0'
@@ -118,12 +135,11 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
                 <ArrowLeftIcon />
               </button>
             </div>
-            <FireInfoCard fire={shown} />
+            <FireInfoCard fire={shown} live={live} />
           </div>
 
           {/* Right column, 360px: actions on top, priorities below. */}
           <div
-            aria-hidden={!open}
             inert={!open || undefined}
             className={`absolute top-4 right-4 bottom-4 z-20 flex w-90 flex-col gap-4 overflow-y-auto transition-[opacity,transform] ${
               open ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
@@ -131,19 +147,7 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
           >
             {analysis && (
               <>
-                <ActionsCard
-                  analysis={analysis}
-                  decisions={decisions}
-                  onDecide={(actionId, status) =>
-                    setDecisions((prev) => ({
-                      ...prev,
-                      [decisionKey(analysis.target_id, actionId)]: {
-                        status,
-                        at: new Date().toISOString(),
-                      },
-                    }))
-                  }
-                />
+                <ActionsCard analysis={analysis} />
                 <PrioritiesCard fire={shown} analysis={analysis} />
               </>
             )}

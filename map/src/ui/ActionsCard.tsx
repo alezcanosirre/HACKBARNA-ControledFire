@@ -1,12 +1,9 @@
 import type { ComponentType } from 'react';
 
 import type { AIAnalysis, RankedAction } from '../mocks/types';
-import { type Decision, decisionKey } from './decisions';
 import {
-  CheckIcon,
   ClockIcon,
   CrewIcon,
-  CrossIcon,
   DroneIcon,
   EvacuateIcon,
   FirebreakIcon,
@@ -44,32 +41,28 @@ function iconFor(actionId: string) {
 }
 
 /**
- * The actions panel, which is the heart of the product (spec.md §5.4).
+ * The actions panel on the ACTUAL page.
+ *
+ * It only shows information. There is no Accept or Dismiss here: the firefighter
+ * decides on the ground and the screen does not ask them to sign anything. What this
+ * card owes them is the ranked list, the reason behind each entry and who wrote it —
+ * enough to judge, nothing that pretends to command.
+ *
+ * That is a deliberate departure from spec.md §5.4, which asks for the two buttons and
+ * a decision log. Your call, taken after seeing it on screen. DESIGN.md §7 and UX.md §5
+ * are updated; spec.md is not, because that file belongs to the other session.
  *
  * The row anatomy comes from the design you passed: a glyph tile on the left, the title
- * with a compact meta line underneath, tight rows separated by a 1px rule. Three things
+ * with a compact meta line underneath, tight rows separated by a 1px rule. Two things
  * were adapted rather than copied:
  *
  *  - The tile glyphs are monochrome, not colour emoji. The reference's emoji are warm,
  *    and warm is map data, never interface (DESIGN.md §1).
  *  - The meta line is not monospaced. DESIGN.md §2 rules it out for small data.
- *  - The reference row carries one verb button. Ours carries two, Accept and Dismiss,
- *    and the reason above them. Those are the two things spec §5.4 will not give up: an
- *    action without justification is a blind order and the operator will not follow it,
- *    and the human decision is the argument of the whole project. They keep the
- *    reference's right-hand alignment, on their own line so they fit in 360px.
  *
  * The rank opens the meta line. The numbering is real priority, not a bullet.
  */
-export function ActionsCard({
-  analysis,
-  decisions,
-  onDecide,
-}: {
-  analysis: AIAnalysis;
-  decisions: Record<string, Decision>;
-  onDecide: (actionId: string, status: Decision['status']) => void;
-}) {
+export function ActionsCard({ analysis }: { analysis: AIAnalysis }) {
   const actions = [...analysis.actions].sort((a, b) => a.rank - b.rank);
 
   return (
@@ -79,12 +72,15 @@ export function ActionsCard({
         <span className="text-meta text-muted">AI proposal</span>
       </header>
 
-      {/* The analysis: what the operator is looking at and why this order. */}
-      <p className="p-4 text-body text-dim">{analysis.summary}</p>
-
+      {/*
+        `analysis.summary` is deliberately not rendered. It restated in prose what the
+        information card on the left already states as data — wind, humidity, who is
+        downwind — and saying it twice in the same screen buys nothing. The field stays
+        in the contract (spec §6.4) because the model still produces it and something
+        else may want it; what does not stay is the paragraph.
+      */}
       <ul className="divide-y divide-line">
         {actions.map((action) => {
-          const decision = decisions[decisionKey(analysis.target_id, action.action_id)];
           const Icon = iconFor(action.action_id);
           const meta = [
             `Priority ${action.rank}`,
@@ -105,46 +101,12 @@ export function ActionsCard({
               <div className="min-w-0 flex-1">
                 <p className="text-body font-medium text-text">{action.label}</p>
                 <p className="mt-0.5 text-meta text-muted">{meta.join(' · ')}</p>
+                {/*
+                  The reason stays, and stays unfolded. Without the buttons it is no
+                  longer the argument for a decision made here, it is the whole point of
+                  the row: it is what lets whoever is on the ground judge the proposal.
+                */}
                 <p className="mt-1.5 text-body text-dim">{action.why}</p>
-
-                <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  {decision ? (
-                    /*
-                      The verb keeps its word: Accept → Accepted. And the time stays
-                      beside it, because this is a decision log.
-                    */
-                    <p
-                      className={`flex items-center gap-2 text-label font-medium ${
-                        decision.status === 'accepted' ? 'text-signal' : 'text-muted'
-                      }`}
-                    >
-                      {decision.status === 'accepted' ? <CheckIcon /> : <CrossIcon />}
-                      {decision.status === 'accepted' ? 'Accepted' : 'Dismissed'}
-                      <span className="text-meta font-normal text-muted">
-                        {time(decision.at)}
-                      </span>
-                    </p>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onDecide(action.action_id, 'accepted')}
-                        className="flex items-center gap-2 rounded-sm bg-primary px-4 py-3 text-label font-medium text-on-primary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
-                      >
-                        <CheckIcon />
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDecide(action.action_id, 'rejected')}
-                        className="flex items-center gap-2 rounded-sm border border-line px-4 py-3 text-label font-medium text-muted transition-colors hover:bg-surface-2/60 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
-                      >
-                        <CrossIcon />
-                        Dismiss
-                      </button>
-                    </>
-                  )}
-                </div>
               </div>
             </li>
           );

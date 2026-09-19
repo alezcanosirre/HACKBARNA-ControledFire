@@ -20,6 +20,10 @@ const ITEMS: Item[] = [
  *
  * Selecting a cell does not dim it or collapse it: it leaves (UX.md §0, rule 2). Shell
  * is what takes it off screen, through `hidden`.
+ *
+ * On the way out it gets `inert` and nothing else — never `aria-hidden` alongside it.
+ * `inert` already removes the menu from the accessibility tree and from the tab order,
+ * and aria-hiding a subtree that still holds focus is blocked by the browser.
  */
 export function SideMenu({ page, hidden, activeFires, collapsed, onToggle }: {
   page: Page;
@@ -33,7 +37,6 @@ export function SideMenu({ page, hidden, activeFires, collapsed, onToggle }: {
   return (
     <nav
       aria-label="Pages"
-      aria-hidden={hidden}
       inert={hidden || undefined}
       className={`pointer-events-auto absolute top-4 bottom-4 left-4 z-20 flex flex-col rounded-md border border-line bg-surface/92 p-2 backdrop-blur-sm transition-[width,transform,opacity] ${
         collapsed ? 'w-16' : 'w-65'

@@ -3,24 +3,15 @@ import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
 import { FlyToInterpolator, type MapViewState } from '@deck.gl/core';
 import { QuadkeyLayer } from '@deck.gl/geo-layers';
-import { LineLayer } from '@deck.gl/layers';
 import { BASEMAP, FOCUS_MS, VIEW_RMB } from './map/constants';
-import {
-  FIRES,
-  FIRE_OUTLINES,
-  PLAIN_CELLS,
-  STATUS_CELLS,
-  fireOf,
-  statusOf,
-  type Cell,
-} from './map/grid';
+import { PRED_CELLS, type Cell } from './map/grid';
 import { STATUS_FILL, STATUS_STROKE, pulsed } from './map/colors';
 import { usePulse } from './map/pulse';
 import { clampToArea, focusOn } from './map/view';
+import type { CellState } from '../../api/src/types';
+import { SIM_FIRE_ID, useSimulation } from './engine/useSimulation';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
-
-type Outline = (typeof FIRE_OUTLINES)[number];
 
 /**
  * Framing when a fire is selected. Two corrections over the raw fit:
@@ -35,6 +26,28 @@ type Outline = (typeof FIRE_OUTLINES)[number];
 const PANEL_W = 360;
 const PANEL_MARGIN = 16;
 const FOCUS_ZOOM_CAP = 12;
+
+/**
+ * Data colours for the states the Engine has and src/map/colors.ts does not paint yet
+ * (it only covers NORMAL and BURNING). They follow spec.md §4.7: BURNED reuses the
+ * `contained` grey, because a burnt-out cell is no longer urgent, and PROTECTED takes
+ * the cool `watch` blue — the one piece of good news on the map, and therefore never
+ * warm. They live here and not in src/map/, which belongs to the other session.
+ */
+const BURNED_FILL: [number, number, number, number] = [122, 122, 138, 90];
+const BURNED_STROKE: [number, number, number, number] = [160, 160, 175, 130];
+const PROTECTED_FILL: [number, number, number, number] = [96, 165, 250, 70];
+const PROTECTED_STROKE: [number, number, number, number] = [147, 197, 253, 130];
+
+/**
+ * The burning fill, modulated by the Engine's per-cell intensity (0-1). Only the alpha
+ * moves: the hue stays the `active` red of spec.md §4.7, so a hot cell and a dying one
+ * still read as the same thing at different strengths.
+ */
+function intensityFill(intensity: number): [number, number, number, number] {
+  const [r, g, b, a] = STATUS_FILL.BURNING;
+  return [r, g, b, Math.round(a * (0.55 + Math.min(1, Math.max(0, intensity)) * 0.45))];
+}
 
 export default function App() {
   // The camera is controlled: every movement goes through clampToArea before being
@@ -53,11 +66,16 @@ export default function App() {
   // same door as a click, and the demo can jump to a given fire if something fails.
   const route = useRoute();
   // What gets selected is the FIRE, not the cell: a fire is one incident, and all its
-  // contiguous cells are the same thing.
+  // contiguous cells are the same thing. The Engine agrees — `SimulationState.fire` is
+  // a single projection, not a list — so there is exactly one id to select.
   const selectedFire = route.page === 'actual' ? route.selection : null;
 
-  // Pulse of the cells with a status. See spec.md §4.8.
-  const tick = usePulse(STATUS_CELLS.length > 0);
+  // The live fire, straight out of the Engine. No HTTP: api/ is a pure TS library and
+  // this hook is the timer that gives it a clock. See engine/useSimulation.ts.
+  const sim = useSimulation();
+
+  // Pulse of the burning cells. See spec.md §4.8.
+  const tick = usePulse(sim.onFire);
 
   // What was selected in the previous render. Needed to tell "I just deselected" from
   // "I arrived with nothing selected": the first has to return to the starting framing
@@ -80,7 +98,7 @@ export default function App() {
     const leaving = previousFire.current;
     previousFire.current = selectedFire;
 
-    const target = selectedFire ? FIRES.find((f) => f.id === selectedFire) : null;
+    const target = selectedFire === SIM_FIRE_ID ? sim.fireBounds : null;
     if (!target) {
       // Arriving with no selection moves nothing: VIEW_RMB is where it starts.
       if (!leaving) return;
@@ -105,7 +123,7 @@ export default function App() {
     setViewState((prev) => {
       // focusOn centres on the fire and fits the zoom to whatever width it is given;
       // with the corridor's, the fit comes out a step further than with the full window.
-      const framed = focusOn(target.bounds, prev, corridor, height);
+      const framed = focusOn(target, prev, corridor, height);
       // The re-clamp uses the REAL width: focusOn clamped against the corridor, which
       // is not the screen, and would let terrain outside Catalonia show at the sides.
       return {
@@ -118,15 +136,19 @@ export default function App() {
         transitionInterpolator: new FlyToInterpolator(),
       } as MapViewState;
     });
+    // sim.fireBounds is read but deliberately NOT a dependency: it changes on every
+    // Engine tick and the camera would chase the fire as it grows, which is unusable.
+    // Framing happens when the selection changes, and then the operator is in control.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFire, measured]);
 
   const layers = useMemo(
     () => [
-      // Reference grid: no status, no fill and no picking. It cannot be clicked
-      // because there is nothing behind it to show.
+      // Reference grid at z15, the whole working area. No status, no fill, no picking:
+      // it is there to give the simulated block a lattice to sit on, nothing else.
       new QuadkeyLayer<Cell>({
         id: 'cells-grid',
-        data: PLAIN_CELLS,
+        data: PRED_CELLS,
         getQuadkey: (d) => d.cell_id,
         getFillColor: STATUS_FILL.NORMAL,
         getLineColor: STATUS_STROKE.NORMAL,
@@ -136,49 +158,55 @@ export default function App() {
         extruded: false,
         pickable: false,
       }),
-      // The burning cells. The grid is still visible inside the blob: the per-cell
-      // stroke is the same grey as the base grid, so the lattice crosses the fire
-      // without breaking. What groups the fire is the outer outline of the next layer,
-      // not the absence of interior lines.
-      new QuadkeyLayer<Cell>({
-        id: 'cells-fire',
-        data: STATUS_CELLS,
-        getQuadkey: (d) => d.cell_id,
-        getFillColor: (d) => pulsed(STATUS_FILL[statusOf(d.cell_id)], tick),
-        getLineColor: STATUS_STROKE.NORMAL,
+      // The scar: cells the fire has already gone through. Painted under the flames,
+      // unlit and not pulsing — it is where the fire HAS been, not where it is.
+      new QuadkeyLayer<CellState>({
+        id: 'sim-burned',
+        data: sim.burned,
+        getQuadkey: sim.cellId,
+        getFillColor: BURNED_FILL,
+        getLineColor: BURNED_STROKE,
         lineWidthMinPixels: 1,
         filled: true,
         stroked: true,
         extruded: false,
         pickable: true,
-        onClick: ({ object }) => {
-          const id = object ? fireOf((object as Cell).cell_id) : null;
-          if (id) openSelection(id);
-          else clearSelection();
-        },
+        onClick: () => openSelection(SIM_FIRE_ID),
+      }),
+      // The fire itself, straight from the Engine and beating. The only thing on the
+      // screen that moves without the operator asking (spec.md §4.8).
+      new QuadkeyLayer<CellState>({
+        id: 'sim-burning',
+        data: sim.burning,
+        getQuadkey: sim.cellId,
+        // The Engine's per-cell intensity drives the alpha: the head of the front
+        // reads hotter than the flanks, which is the shape an operator looks for.
+        getFillColor: (d) => pulsed(intensityFill(d.intensity), tick),
+        getLineColor: STATUS_STROKE.BURNING,
+        lineWidthMinPixels: 1,
+        filled: true,
+        stroked: true,
+        extruded: false,
+        pickable: true,
+        onClick: () => openSelection(SIM_FIRE_ID),
         updateTriggers: { getFillColor: [tick] },
       }),
-      // The fire's outline, not each cell's: only the sides facing outwards.
-      new LineLayer<Outline>({
-        id: 'fire-outline',
-        data: FIRE_OUTLINES,
-        getSourcePosition: (d) => d.from,
-        getTargetPosition: (d) => d.to,
-        getColor: (d) =>
-          d.fire_id === selectedFire
-            ? [255, 255, 255, 235]
-            : pulsed(STATUS_STROKE.BURNING, tick),
-        getWidth: (d) => (d.fire_id === selectedFire ? 2.5 : 1.2),
-        widthUnits: 'pixels',
-        widthMinPixels: 1,
+      // Firebreaks. Cool grey on purpose: protected ground is the one thing on this
+      // map that is good news, and warm is reserved for what burns.
+      new QuadkeyLayer<CellState>({
+        id: 'sim-protected',
+        data: sim.protectedCells,
+        getQuadkey: sim.cellId,
+        getFillColor: PROTECTED_FILL,
+        getLineColor: PROTECTED_STROKE,
+        lineWidthMinPixels: 1,
+        filled: true,
+        stroked: true,
+        extruded: false,
         pickable: false,
-        updateTriggers: {
-          getColor: [selectedFire, tick],
-          getWidth: [selectedFire],
-        },
       }),
     ],
-    [selectedFire, tick],
+    [sim, tick],
   );
 
   return (
@@ -218,8 +246,29 @@ export default function App() {
         <Map mapStyle={BASEMAP} reuseMaps />
       </DeckGL>
 
-      {/* The whole interface lives in one floating layer over the map. See UX.md §2. */}
-      <Shell route={route} activeFires={FIRES.length} />
+      {/*
+        The whole interface lives in one floating layer over the map (UX.md §2). The
+        live figures it needs come from the Engine, not from the mocks: the hectare
+        count is `state.fire.burnedAreaHa`, the Engine's own, never derived from cell
+        size (see engine/anchor.ts).
+      */}
+      <Shell
+        route={route}
+        activeFires={sim.onFire ? 1 : 0}
+        live={{
+          areaHa: sim.burnedAreaHa,
+          minutes: sim.minutes,
+          burningCells: sim.burning.length,
+          // EnvironmentState maps one to one onto spec §6.2's weather, wind convention
+          // included: both count degrees as the direction the wind blows FROM.
+          weather: {
+            temp_c: sim.environment.temperature,
+            humidity_pct: sim.environment.humidity * 100,
+            wind_speed_kmh: sim.environment.wind.speed,
+            wind_dir_deg: sim.environment.wind.direction,
+          },
+        }}
+      />
     </div>
   );
 }
