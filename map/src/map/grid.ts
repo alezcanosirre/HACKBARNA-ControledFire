@@ -1,4 +1,5 @@
 import { BBOX_RMB, FIRE_HALO_K, QUAD_Z } from './constants';
+import type { CellStatus } from './colors';
 
 /** Lo mínimo que necesita la capa para pintar una celda. */
 export interface Cell {
@@ -98,3 +99,27 @@ export function cellsAroundFire(lat: number, lng: number, k = FIRE_HALO_K): stri
  * lo convierte en una presentación de diapositivas.
  */
 export const PRED_CELLS: Cell[] = cellsInBbox(BBOX_RMB).map((cell_id) => ({ cell_id }));
+
+/** Escenario de demo: Collserola ardiendo, Montseny en riesgo, Garraf vigilado. */
+const SCENARIO: Record<string, CellStatus> = {
+  [cellAt(41.4186, 2.0899)]: 'active',     // Collserola
+  [cellAt(41.7736, 2.4008)]: 'risk',       // Montseny
+  [cellAt(41.2800, 1.8500)]: 'watch',      // Garraf
+  [cellAt(41.6000, 1.6000)]: 'contained',  // interior
+};
+
+export function statusOf(cell_id: string): CellStatus {
+  return SCENARIO[cell_id] ?? 'normal';
+}
+
+/**
+ * Solo estas son pulsables. Una celda sin estado no tiene nada que abrir, así que no
+ * se puede seleccionar ni cambia el cursor: es rejilla de referencia, no un objetivo.
+ */
+export const STATUS_CELLS: Cell[] = PRED_CELLS.filter(
+  (c) => statusOf(c.cell_id) !== 'normal',
+);
+
+export const PLAIN_CELLS: Cell[] = PRED_CELLS.filter(
+  (c) => statusOf(c.cell_id) === 'normal',
+);

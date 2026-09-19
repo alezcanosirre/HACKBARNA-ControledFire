@@ -4,7 +4,8 @@ import { Map } from 'react-map-gl/maplibre';
 import type { MapViewState } from '@deck.gl/core';
 import { QuadkeyLayer } from '@deck.gl/geo-layers';
 import { BASEMAP, VIEW_RMB } from './map/constants';
-import { PRED_CELLS, type Cell } from './map/grid';
+import { PLAIN_CELLS, STATUS_CELLS, statusOf, type Cell } from './map/grid';
+import { STATUS_FILL, STATUS_STROKE } from './map/colors';
 import { clampToArea } from './map/view';
 
 export default function App() {
@@ -15,16 +16,35 @@ export default function App() {
 
   const layers = useMemo(
     () => [
+      // Rejilla de referencia: sin estado, sin relleno y sin picking. No se puede
+      // pulsar porque no hay nada detrás que enseñar.
       new QuadkeyLayer<Cell>({
-        id: 'cells-pred',
-        data: PRED_CELLS,
+        id: 'cells-grid',
+        data: PLAIN_CELLS,
+        getQuadkey: (d) => d.cell_id,
+        getFillColor: STATUS_FILL.normal,
+        getLineColor: STATUS_STROKE.normal,
+        lineWidthMinPixels: 1,
+        filled: true,
+        stroked: true,
+        extruded: false,
+        pickable: false,
+      }),
+      // Las celdas con estado: las únicas que se pintan y las únicas pulsables.
+      new QuadkeyLayer<Cell>({
+        id: 'cells-status',
+        data: STATUS_CELLS,
         getQuadkey: (d) => d.cell_id,
         getFillColor: (d) =>
-          d.cell_id === selected?.cell_id ? [96, 165, 250, 90] : [0, 0, 0, 0],
+          d.cell_id === selected?.cell_id
+            ? [96, 165, 250, 90]
+            : STATUS_FILL[statusOf(d.cell_id)],
         getLineColor: (d) =>
-          d.cell_id === selected?.cell_id ? [147, 197, 253, 220] : [148, 163, 184, 45],
+          d.cell_id === selected?.cell_id
+            ? [147, 197, 253, 220]
+            : STATUS_STROKE[statusOf(d.cell_id)],
         lineWidthMinPixels: 1,
-        filled: true,                          // hace falta para el picking, alfa 0
+        filled: true,
         stroked: true,
         extruded: false,
         pickable: true,
@@ -55,7 +75,7 @@ export default function App() {
       </DeckGL>
 
       <div className="absolute bottom-4 left-4 rounded border border-[#1D2840] bg-[#131C2E]/90 px-3 py-2 text-xs text-[#8FA3BF]">
-        {PRED_CELLS.length} celdas ·{' '}
+        {PLAIN_CELLS.length + STATUS_CELLS.length} celdas ·{' '}
         <span className="text-[#E4EBF5]">{selected?.cell_id ?? 'ninguna seleccionada'}</span>
       </div>
     </div>
