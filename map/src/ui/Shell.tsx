@@ -17,14 +17,6 @@ import { Surface } from './Surface';
 import { ArrowLeftIcon } from './icons';
 import { clearSelection, type Route } from './route';
 
-/** The subset of the Engine's state the detail panel can actually use. */
-export interface LiveFire {
-  areaHa: number;
-  minutes: number;
-  burningCells: number;
-  weather: { temp_c: number; humidity_pct: number; wind_speed_kmh: number; wind_dir_deg: number };
-}
-
 /** DESIGN.md §5. A single motion token for the whole interface. */
 const DURATION_MS = 400;
 
@@ -44,28 +36,24 @@ export function Shell({
   activeFires,
   simulating,
   onToggleSimulation,
-  live,
   liveFires,
   riskCells = 0,
   livePrediction,
+  simulatedFire,
 }: {
   route: Route;
   activeFires: number;
   /** Whether the Fire Engine is running. ACTUAL is live data; this is the other source. */
   simulating: boolean;
   onToggleSimulation: () => void;
-  /**
-   * What the Engine knows, passed straight down to the information card. Everything
-   * else in the detail panel is still mocked — the Engine has no place names, no
-   * detection source and no population at risk. See FireInfoCard.
-   */
-  live?: LiveFire;
   /** Real Deepfire detections clicked on the map — see live/types.ts LiveFireSummary. */
   liveFires?: readonly LiveFireSummary[];
   /** How many cells carry risk on PRED. Drives the empty state, nothing else. */
   riskCells?: number;
   /** Detail for a risk cell, from the backend heuristic. Nothing else feeds PRED. */
   livePrediction?: (cellId: string | null) => Prediction | null;
+  /** A SIMULATION case by id. Static data, so it is a plain lookup, not a hook. */
+  simulatedFire?: (id: string | null) => { fire: Fire } | null;
 }) {
   /*
    * Three things can be selected, and which one depends on the page. ACTUAL opens a
@@ -73,7 +61,10 @@ export function Shell({
    * per-cell number and there is no incident to group (UX.md §7).
    */
   const onPred = route.page === 'pred';
-  const fire = onPred ? null : fireById(route.selection);
+  // A SIMULATION case first: it is the only source with a full incident to show.
+  const fire = onPred
+    ? null
+    : (simulatedFire?.(route.selection)?.fire ?? fireById(route.selection));
   const liveFire =
     onPred || fire ? null : (liveFires?.find((f) => f.id === route.selection) ?? null);
   // No mock fallback: if the heuristic has nothing for this cell, there is nothing to
@@ -205,7 +196,7 @@ export function Shell({
             ) : shownIsRisk ? (
               <RiskCard prediction={shown as Prediction} />
             ) : (
-              shown && <FireInfoCard fire={shown as Fire} live={live} />
+              shown && <FireInfoCard fire={shown as Fire} />
             )}
           </div>
 

@@ -3,32 +3,31 @@ import type { Position } from '../../../api/src/types';
 /**
  * Anchors the Engine's local {x,y} grid onto real ground.
  *
- * `api/spec.md` lists this as the open integration point: a Scenario's Position is a
- * local grid with no lat/lng, and the Engine's `CELL_AREA_HA = 1` means one of its
- * cells is one hectare — 100 m of side. Our reference grid is quadkey z15, ~916 m.
- * Making the Engine coarser would mean rebalancing its scenario, which is tuned at
- * that scale, so the map is the side that adapts: the simulation is painted on
- * quadkey z18 (~115 m at this latitude), the closest level to a hectare.
+ * A case is a local grid with no lat/lng (api/src/scenario/simulatedFireCases.ts), so
+ * both where it sits and how big its cells are get decided here.
  *
- * z18 nests exactly inside z15 — 8x8 — so the simulation block lands flush on the
- * reference lattice instead of floating at an angle over it.
- *
- * KNOWN DISCREPANCY: a z18 cell here is 1.31 ha, not 1.00. Which is why the hectares
- * on screen come from `state.fire.burnedAreaHa`, the Engine's own count, and are never
- * derived from cell size. When `api/` makes cell size a Scenario field, this closes.
+ * The zoom is a parameter rather than a constant so a case is not tied to one scale,
+ * but everything draws at z15 today: the reference grid (see simulatedFires.ts). A
+ * square means the same ground wherever it is on this map.
  */
 
-export const SIM_Z = 18;
+/** Side of a quadkey cell in metres, at a given latitude. Mercator, so latitude matters. */
+export function cellSideM(z: number, latitude: number): number {
+  return (40075016.686 * Math.cos((latitude * Math.PI) / 180)) / 2 ** z;
+}
 
 /**
- * Where the local (0,0) sits. This one constant moves the whole simulation, and it is
- * the number to replace the moment the backend gives a real one — the scenario says
- * outright that its Collserola is stylised, not GPS.
+ * Where a case's local grid sits on real ground.
  *
- * Chosen as the centre of the 20x15 block: the Collserola ridge, between Sant Cugat to
- * the north and Vallvidrera to the south, which is the layout the scenario describes.
+ * The backend cases (api/src/scenario/simulatedFireCases.ts) carry no geography at all
+ * — they are a 20x15 local grid and a name. Putting each one where its name says it is
+ * belongs here, on the map side, and these are the numbers to replace the day a case
+ * ships with real coordinates.
  */
-export const SIM_CENTER = { latitude: 41.43, longitude: 2.09 };
+export interface Anchor2D {
+  readonly latitude: number;
+  readonly longitude: number;
+}
 
 function lngToTileX(lng: number, z: number) {
   return Math.floor(((lng + 180) / 360) * 2 ** z);
@@ -61,20 +60,24 @@ const tileToLat = (y: number, z: number) =>
  * The adapter for one scenario size. Built once per scenario, not per frame: the origin
  * tile is a fixed offset and every conversion after that is an addition.
  */
-export function createAnchor(mapWidth: number, mapHeight: number) {
-  // The centre constant names the middle of the block, so the origin is half a map
-  // north-west of it. Anchoring by TILE and not by float lat/lng keeps the block
-  // snapped to the lattice.
-  const originX = lngToTileX(SIM_CENTER.longitude, SIM_Z) - Math.floor(mapWidth / 2);
-  const originY = latToTileY(SIM_CENTER.latitude, SIM_Z) - Math.floor(mapHeight / 2);
+export function createAnchor(
+  center: Anchor2D,
+  mapWidth: number,
+  mapHeight: number,
+  z: number,
+) {
+  // The centre names the middle of the block, so the origin is half a map north-west of
+  // it. Anchoring by TILE and not by float lat/lng keeps the block snapped to the lattice.
+  const originX = lngToTileX(center.longitude, z) - Math.floor(mapWidth / 2);
+  const originY = latToTileY(center.latitude, z) - Math.floor(mapHeight / 2);
 
   const cellId = (position: Position): string =>
-    tileToQuadkey(originX + position.x, originY + position.y, SIM_Z);
+    tileToQuadkey(originX + position.x, originY + position.y, z);
 
   /** [[west, south], [east, north]] of the whole simulated block. */
   const bounds: [[number, number], [number, number]] = [
-    [tileToLng(originX, SIM_Z), tileToLat(originY + mapHeight, SIM_Z)],
-    [tileToLng(originX + mapWidth, SIM_Z), tileToLat(originY, SIM_Z)],
+    [tileToLng(originX, z), tileToLat(originY + mapHeight, z)],
+    [tileToLng(originX + mapWidth, z), tileToLat(originY, z)],
   ];
 
   /** Extent of an arbitrary subset of cells, for framing a fire. */
@@ -91,8 +94,8 @@ export function createAnchor(mapWidth: number, mapHeight: number) {
       if (y > maxY) maxY = y;
     }
     return [
-      [tileToLng(originX + minX, SIM_Z), tileToLat(originY + maxY + 1, SIM_Z)],
-      [tileToLng(originX + maxX + 1, SIM_Z), tileToLat(originY + minY, SIM_Z)],
+      [tileToLng(originX + minX, z), tileToLat(originY + maxY + 1, z)],
+      [tileToLng(originX + maxX + 1, z), tileToLat(originY + minY, z)],
     ];
   }
 
