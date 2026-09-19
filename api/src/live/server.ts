@@ -11,6 +11,17 @@ const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
 // si se confirma un rate limit distinto en la doc de Deepfire.
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 2 * 60_000);
 
+// Diagnóstico de arranque, nunca la clave en sí — el fallo más habitual de
+// POST /api/live-fires/:id/actions es que este proceso arrancó sin ella cargada
+// (p.ej. se editó api/.env con el servidor ya corriendo: las variables de entorno
+// solo se leen una vez, al arrancar — hay que reiniciar `npm run live`).
+console.log(
+  process.env.NEBIUS_API_KEY
+    ? "[live] Nebius: clave cargada"
+    : "[live] Nebius: SIN CLAVE — NEBIUS_API_KEY no está en el entorno de este proceso. " +
+        "Si ya la pusiste en api/.env, reinicia `npm run live` (se lee solo al arrancar).",
+);
+
 async function pollOnce(): Promise<void> {
   try {
     const state = await buildLiveFireState();

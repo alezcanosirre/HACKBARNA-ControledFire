@@ -100,6 +100,44 @@ describe("getActionRecommendation — detección sin confirmación de campo", ()
     expect(result.recommendedAction?.title).toBe("Verificar el aviso"); // del catálogo, no del modelo
     expect(result.complementaryActionIds).toEqual(["A02"]);
   });
+
+  it("caso real reportado: detección nocturna sin meteo/terreno/confirmación sigue permitiendo A01", async () => {
+    // 03:22–04:06, VIIRS/NOAA-21, confianza media, FRP 0.7 MW, 3 detecciones usadas
+    // para el perímetro (pero sin área/longitud calculadas todavía), sin confirmación
+    // operativa. La falta de una táctica de extinción no debe bloquear la acción de
+    // verificación — es justo el caso para el que existe A01.
+    const fire = makeFire({
+      confidence: "MEDIUM",
+      areaHa: null,
+      perimeterM: null,
+      nHotspots: 3,
+      fireRadiativePowerMw: 0.7,
+      centroid: { lat: 41.4562, lng: 1.9791 },
+    });
+    vi.mocked(findFireById).mockReturnValue(fire);
+    vi.mocked(callNebiusForJson).mockResolvedValue({
+      status: "recommended",
+      summary: "Detección de confianza media, sin confirmación operativa ni perímetro calculado.",
+      recommendedAction: {
+        id: "A01",
+        title: "se ignora",
+        reason: "Hay 3 detecciones de confianza media pero ninguna confirmación operativa registrada.",
+        evidence: [
+          { field: "incident.detection.latestConfidence", explanation: "Confianza MEDIUM, no confirmación en tierra." },
+          { field: "incident.perimeter.hotspotsUsed", explanation: "3 detecciones acumuladas, sin área/perímetro aún." },
+        ],
+      },
+      complementaryActionIds: [],
+      missingData: ["Confirmación operativa del incidente"],
+      limitations: [],
+    });
+
+    const result = await getActionRecommendation(fire.id);
+
+    expect(result.status).toBe("recommended");
+    expect(result.recommendedAction?.id).toBe("A01");
+    expect(result.recommendedAction?.title).toBe("Verificar el aviso");
+  });
 });
 
 describe("getActionRecommendation — incidente con datos incompletos", () => {

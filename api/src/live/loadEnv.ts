@@ -21,7 +21,11 @@ function loadEnvFile(path: string): void {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim();
-    if (!(key in process.env)) {
+    // No solo "la clave existe" — una variable de entorno real vacía ("" o no
+    // definida) no cuenta como una anulación deliberada, y no debe bloquear el valor
+    // de api/.env. Sin esto, un NEBIUS_API_KEY="" heredado de una sesión de shell
+    // anterior deja la clave vacía para siempre aunque .env tenga la real.
+    if (!process.env[key]) {
       process.env[key] = value;
     }
   }

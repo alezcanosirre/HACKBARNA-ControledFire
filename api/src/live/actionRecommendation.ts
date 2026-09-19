@@ -251,11 +251,11 @@ function unavailable(
   return {
     ...base,
     status: "unavailable",
-    summary: "No se ha podido generar una recomendación automática para este incidente en este momento.",
+    summary: "Could not generate an automatic recommendation for this incident right now.",
     recommendedAction: null,
     complementaryActionIds: [],
     missingData: [],
-    limitations: ["Recomendación no disponible — revisar manualmente."],
+    limitations: ["Recommendation unavailable — review manually."],
   };
 }
 
