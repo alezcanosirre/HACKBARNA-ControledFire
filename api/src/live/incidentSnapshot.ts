@@ -30,6 +30,24 @@ export interface IncidentSnapshot {
   };
   /** Nº de celdas H3 que arden ahora mismo, según el último ciclo de sondeo. */
   readonly activeCellCount: number;
+  /**
+   * El tiempo que hace AHORA sobre el incidente, de met.no (weather.ts) — no de
+   * Deepfire, que no da meteo.
+   *
+   * Sin esto el modelo pedía "información meteorológica local verificada" como dato
+   * que falta, y la teníamos en la mano: el mapa ya la enseña en la tarjeta del foco.
+   * Es además lo que más cambia una recomendación — 88% de humedad y 5 km/h dicen una
+   * cosa y 20% con 40 km/h dicen otra muy distinta, con el mismo perímetro vacío.
+   */
+  readonly weather: {
+    readonly temperatureC: number;
+    readonly humidityPct: number;
+    readonly windSpeedKmh: number;
+    readonly windDirectionDeg: number;
+    /** Procedencia y hora: el prompt descarta la meteo que no las traiga. */
+    readonly source: string;
+    readonly observedAt: string; // ISO 8601
+  } | null;
 }
 
 export function buildIncidentSnapshot(fire: LiveFireSummary): IncidentSnapshot {
@@ -49,6 +67,7 @@ export function buildIncidentSnapshot(fire: LiveFireSummary): IncidentSnapshot {
       hotspotsUsed: fire.nHotspots,
     },
     activeCellCount: fire.cellIds.length,
+    weather: fire.weather,
   };
 }
 
@@ -72,4 +91,11 @@ export const INCIDENT_FIELD_PATHS: readonly string[] = [
   "incident.perimeter.perimeterM",
   "incident.perimeter.hotspotsUsed",
   "incident.activeCellCount",
+  "incident.weather",
+  "incident.weather.temperatureC",
+  "incident.weather.humidityPct",
+  "incident.weather.windSpeedKmh",
+  "incident.weather.windDirectionDeg",
+  "incident.weather.source",
+  "incident.weather.observedAt",
 ];

@@ -52,6 +52,13 @@ export interface WeatherSample {
     readonly humidityPct: number;
     readonly windSpeedKmh: number;
     readonly windDirectionDeg: number;
+    /**
+     * Procedencia y hora del dato. No es adorno: el prompt de recomendación exige
+     * meteorología "con procedencia y marca temporal verificables" y descarta la que no
+     * las traiga. Sin estos dos campos el modelo ignora la meteo aunque se la demos.
+     */
+    readonly source: string;
+    readonly observedAt: string; // ISO 8601
   };
 }
 
@@ -99,7 +106,8 @@ function worstOfWindow(entries: readonly MetNoEntry[]): Omit<WeatherSample, 'lat
     }
   }
 
-  const now = entries[0].data.instant.details;
+  const nowEntry = entries[0];
+  const now = nowEntry.data.instant.details;
 
   return {
     temperatureC,
@@ -113,6 +121,8 @@ function worstOfWindow(entries: readonly MetNoEntry[]): Omit<WeatherSample, 'lat
       humidityPct: now.relative_humidity,
       windSpeedKmh: now.wind_speed * 3.6,
       windDirectionDeg: now.wind_from_direction,
+      source: "met.no locationforecast",
+      observedAt: nowEntry.time,
     },
   };
 }

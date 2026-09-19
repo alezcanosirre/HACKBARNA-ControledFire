@@ -6,6 +6,7 @@ import type { Fire, Prediction } from '../mocks/types';
 import type { LiveFireSummary } from '../live/types';
 import { useFireActions } from '../live/useFireActions';
 import { ActionsCard } from './ActionsCard';
+import { ActionsSkeleton } from './ActionsSkeleton';
 import { FireInfoCard } from './FireInfoCard';
 import { LiveActionsCard } from './LiveActionsCard';
 import { LiveFireInfoCard } from './LiveFireInfoCard';
@@ -211,9 +212,12 @@ export function Shell({
               open ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
             }`}
           >
-            {shownIsLive && liveLoading && (
-              <p className="p-4 text-meta text-muted">Generating recommended actions…</p>
-            )}
+            {/*
+              The card is there from the first frame, with its gaps in a loading state
+              (UX.md §8). It used to be a line of text that appeared where the card would
+              later be, which reads as an error message rather than as work in progress.
+            */}
+            {shownIsLive && liveLoading && <ActionsSkeleton />}
             {shownIsRisk && (
               <Surface as="aside">
                 <p className="text-label text-text">No preventive actions yet</p>

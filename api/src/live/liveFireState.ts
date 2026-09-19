@@ -39,6 +39,8 @@ export interface LiveFireSummary {
     readonly humidityPct: number;
     readonly windSpeedKmh: number;
     readonly windDirectionDeg: number;
+    readonly source: string;
+    readonly observedAt: string; // ISO 8601
   } | null;
 }
 
@@ -142,14 +144,7 @@ export async function buildLiveFireState(): Promise<LiveFireState> {
       nHotspots: perimeter?.nHotspots ?? (ownHotspots.length || null),
       confidence: latestHotspot?.confidence ?? null,
       source: latestHotspot?.source ?? null,
-      weather: sample
-        ? {
-            temperatureC: sample.current.temperatureC,
-            humidityPct: sample.current.humidityPct,
-            windSpeedKmh: sample.current.windSpeedKmh,
-            windDirectionDeg: sample.current.windDirectionDeg,
-          }
-        : null,
+      weather: sample ? sample.current : null,
       fireRadiativePowerMw: latestHotspot?.fireRadiativePowerMw ?? null,
       wind: getCachedWind(cluster.id),
     };

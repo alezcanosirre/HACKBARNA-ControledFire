@@ -30,7 +30,8 @@ const ACTION_TITLES: Record<string, string> = {
  * key) couldn't be reached — the summary already says so without pretending otherwise.
  */
 export function LiveActionsCard({ recommendation }: { recommendation: ActionRecommendation }) {
-  const { status, recommendedAction, complementaryActionIds, missingData, limitations } =
+  // `limitations` is deliberately not destructured: see the note further down.
+  const { status, recommendedAction, complementaryActionIds, missingData } =
     recommendation;
 
   return (
@@ -76,28 +77,34 @@ export function LiveActionsCard({ recommendation }: { recommendation: ActionReco
           </div>
         )}
 
+        {/*
+          What is missing, on one line and folded away.
+
+          The model returns three blocks that say the same thing from three angles: the
+          reasoning, `missingData`, and `limitations` — all of them variations on "there
+          is not enough here". Rendered in full they filled the panel with the product
+          apologising, and an operator reading under pressure pays for every repetition.
+
+          So the count goes on one line and the detail opens on demand. `limitations` is
+          dropped entirely: it is `missingData` restated in the negative, and whoever
+          needs that nuance is not reading a map at 3am.
+        */}
         {missingData.length > 0 && (
-          <div>
-            <span className="block text-meta text-muted">Missing data</span>
-            <ul className="mt-1 flex flex-col gap-1">
+          <details className="group">
+            <summary className="cursor-pointer list-none text-meta text-muted transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text">
+              <span aria-hidden="true" className="inline-block w-3 group-open:rotate-90">
+                ▸
+              </span>
+              {missingData.length} missing data point{missingData.length === 1 ? '' : 's'}
+            </summary>
+            <ul className="mt-1 flex flex-col gap-1 pl-3">
               {missingData.map((item, i) => (
-                <li key={i} className="flex gap-2 text-meta text-dim">
-                  <span aria-hidden="true">▸</span>
-                  <span>{item}</span>
+                <li key={i} className="text-meta text-dim">
+                  {item}
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {limitations.length > 0 && (
-          <ul className="flex flex-col gap-1">
-            {limitations.map((item, i) => (
-              <li key={i} className="text-meta text-muted">
-                {item}
-              </li>
-            ))}
-          </ul>
+          </details>
         )}
       </div>
 

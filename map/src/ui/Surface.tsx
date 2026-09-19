@@ -19,16 +19,20 @@ export function Surface({
   as: Tag = 'section',
   className = '',
   padded = true,
+  busy = false,
   children,
 }: {
   as?: 'section' | 'aside' | 'nav' | 'div';
   className?: string;
+  /** Marks the card as still filling in, for anyone not looking at the skeleton. */
+  busy?: boolean;
   /** False for cards that separate their blocks with a full-bleed 1px rule. */
   padded?: boolean;
   children: ReactNode;
 }) {
   return (
     <Tag
+      aria-busy={busy || undefined}
       className={`pointer-events-auto rounded-md border border-line bg-surface/92 backdrop-blur-sm ${
         padded ? 'p-4' : ''
       } ${className}`}

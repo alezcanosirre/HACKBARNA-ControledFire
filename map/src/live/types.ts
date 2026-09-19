@@ -34,6 +34,8 @@ export interface LiveFireSummary {
     readonly humidityPct: number;
     readonly windSpeedKmh: number;
     readonly windDirectionDeg: number;
+    readonly source: string;
+    readonly observedAt: string;
   } | null;
 }
 

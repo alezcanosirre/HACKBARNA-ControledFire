@@ -36,6 +36,19 @@ const PANEL_W = 360;
 const PANEL_MARGIN = 16;
 const FOCUS_ZOOM_CAP = 12;
 
+/**
+ * The selected fire's outline. White and thicker, drawn over whatever colour the cell
+ * already has, so the one you clicked is unmistakable among the others.
+ *
+ * It is the only white on the map, and that is deliberate: warm means fire and cool
+ * means data, so "the thing you are looking at" needed a third channel that is neither.
+ * This used to exist as a separate outline layer and was lost when the layers were
+ * rewritten around the live feed — clicking a fire opened the panel and left no mark on
+ * the map, which makes you doubt you clicked the right one.
+ */
+const SELECTED_STROKE: [number, number, number, number] = [255, 255, 255, 235];
+const SELECTED_WIDTH = 3;
+
 
 /**
  * The burning fill, modulated by the Engine's per-cell intensity (0-1). Only the alpha
@@ -237,7 +250,9 @@ export default function App() {
         data: onPred ? riskCells : [],
         getQuadkey: (d) => d.cell_id,
         getFillColor: (d) => riskFill(d.risk),
-        getLineColor: (d) => riskStroke(d.risk),
+        getLineColor: (d) =>
+          d.cell_id === route.selection ? SELECTED_STROKE : riskStroke(d.risk),
+        getLineWidth: (d) => (d.cell_id === route.selection ? SELECTED_WIDTH : 1),
         lineWidthMinPixels: 1,
         filled: true,
         stroked: true,
@@ -246,7 +261,11 @@ export default function App() {
         onClick: ({ object }) => {
           if (object) openSelection(object.cell_id);
         },
-        updateTriggers: { getFillColor: [onPred, riskCells], getLineColor: [onPred, riskCells] },
+        updateTriggers: {
+          getFillColor: [onPred, riskCells],
+          getLineColor: [onPred, riskCells, route.selection],
+          getLineWidth: [route.selection],
+        },
       }),
       // The live Deepfire feed: what is burning right now, and what its spread
       // projection puts at risk. Arrives as H3 res-8 and is rasterised onto this grid
@@ -256,7 +275,12 @@ export default function App() {
         data: onPred ? [] : liveCells,
         getQuadkey: (d) => d.cell_id,
         getFillColor: (d) => LIVE_FILL[liveStatus.get(d.cell_id) ?? 'risk'],
-        getLineColor: (d) => LIVE_STROKE[liveStatus.get(d.cell_id) ?? 'risk'],
+        getLineColor: (d) =>
+          quadkeyToFireId.get(d.cell_id) === selectedFire
+            ? SELECTED_STROKE
+            : LIVE_STROKE[liveStatus.get(d.cell_id) ?? 'risk'],
+        getLineWidth: (d) =>
+          quadkeyToFireId.get(d.cell_id) === selectedFire ? SELECTED_WIDTH : 1,
         lineWidthMinPixels: 1,
         filled: true,
         stroked: true,
@@ -272,7 +296,8 @@ export default function App() {
         },
         updateTriggers: {
           getFillColor: [liveStatus],
-          getLineColor: [liveStatus],
+          getLineColor: [liveStatus, selectedFire],
+          getLineWidth: [selectedFire],
           onClick: [quadkeyToFireId],
         },
       }),
@@ -292,7 +317,9 @@ export default function App() {
         // Per-cell intensity drives the alpha: the head of the front reads hotter than
         // the flanks, which is the shape an operator looks for.
         getFillColor: (d) => pulsed(intensityFill(d.intensity), tick),
-        getLineColor: STATUS_STROKE.BURNING,
+        getLineColor: (d) =>
+          d.fireId === selectedFire ? SELECTED_STROKE : STATUS_STROKE.BURNING,
+        getLineWidth: (d) => (d.fireId === selectedFire ? SELECTED_WIDTH : 1),
         lineWidthMinPixels: 1,
         filled: true,
         stroked: true,
@@ -301,10 +328,15 @@ export default function App() {
         onClick: ({ object }: { object?: SimulatedCell }) => {
           if (object) openSelection(object.fireId);
         },
-        updateTriggers: { getFillColor: [tick], data: [simulating, onPred] },
+        updateTriggers: {
+          getFillColor: [tick],
+          getLineColor: [selectedFire],
+          getLineWidth: [selectedFire],
+          data: [simulating, onPred],
+        },
       }),
     ],
-    [simulating, tick, liveCells, liveStatus, quadkeyToFireId, onPred, riskCells],
+    [simulating, tick, liveCells, liveStatus, quadkeyToFireId, onPred, riskCells, selectedFire, route.selection],
   );
 
   return (
