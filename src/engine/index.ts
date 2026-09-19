@@ -1,13 +1,14 @@
-import type { Action, Outcome, Scenario, SimulationState } from "../types";
+import type { Action, Outcome, SimulationState } from "../types";
+
+export { createInitialState } from "./createInitialState";
 
 /**
- * Public signatures ONLY — no propagation algorithm, no bodies. `declare`
- * lets these type-check as the Engine's contract without requiring an
- * implementation yet; the real functions replace this file later without
- * anything that already imports from here needing to change.
+ * Public signatures ONLY for what's not implemented yet — no propagation
+ * algorithm, no body. `declare` lets these type-check as the Engine's
+ * contract without an implementation; real functions will replace these
+ * declarations without anything that already imports from here needing to
+ * change.
  */
-
-export declare function createInitialState(scenario: Scenario): SimulationState;
 
 export declare function step(state: SimulationState, actions: Action[]): SimulationState;
 

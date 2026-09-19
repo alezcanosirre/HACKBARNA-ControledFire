@@ -7,6 +7,7 @@ import type {
   ResourceStatus,
   ResourceType,
   SimMinutes,
+  TerrainType,
 } from "./common";
 import type { Action } from "./action";
 
@@ -19,6 +20,12 @@ export interface CellState {
   readonly position: Position;
   readonly remainingFuel: number; // 0-1
   readonly status: CellStatus;
+  // terrainType/slope are static in Scenario but copied here at
+  // createInitialState() time so SimulationState is self-contained: step()
+  // takes only (state, actions), and a restored Snapshot can keep simulating
+  // without also needing the original Scenario around.
+  readonly terrainType: TerrainType;
+  readonly slope: number; // 0-1
 }
 
 export interface FireCell {
