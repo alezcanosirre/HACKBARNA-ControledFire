@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import DeckGL from '@deck.gl/react';
+import { latLngToCell } from 'h3-js';
 import { Map } from 'react-map-gl/maplibre';
 import { FlyToInterpolator, type MapViewState } from '@deck.gl/core';
 import { QuadkeyLayer } from '@deck.gl/geo-layers';
@@ -13,6 +14,7 @@ import { SIM_FIRE_ID, useSimulation } from './engine/useSimulation';
 import { useLiveFireState } from './live/useLiveFireState';
 import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { quadkeysForH3Cells } from './live/h3ToQuadkey';
+import { LIVE_H3_RES, groupActiveFires, withHotspotDetail } from './live/groupFires';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
 
@@ -98,6 +100,30 @@ export default function App() {
     const risk = quadkeysForH3Cells(live.data?.riskCellIds ?? []);
     return statusFromLiveCells(active, risk);
   }, [live.data]);
+
+  /*
+   * The backend still answers with a flat cell list, not one entry per incident (see
+   * live/groupFires.ts) — so fires are grouped here, client-side, purely to give a
+   * click something to select. `quadkeyToFireId` maps each rasterised square back to
+   * whichever group it came from, since the picked object on click is a quadkey, not
+   * an H3 cell.
+   */
+  const liveFires = useMemo(() => {
+    const groups = groupActiveFires(live.data?.activeCellIds ?? []);
+    return withHotspotDetail(groups, live.data?.hotspots ?? [], (h) =>
+      latLngToCell(h.lat, h.lng, LIVE_H3_RES),
+    );
+  }, [live.data]);
+
+  const quadkeyToFireId = useMemo(() => {
+    // `Map` here is the JS built-in, not the react-map-gl component imported above —
+    // globalThis avoids the name collision.
+    const map = new globalThis.Map<string, string>();
+    for (const fire of liveFires) {
+      for (const quadkey of quadkeysForH3Cells(fire.cellIds)) map.set(quadkey, fire.id);
+    }
+    return map;
+  }, [liveFires]);
 
   // Only the cells that have something to say. The full mesh is never generated at this
   // resolution — see spec.md §4.2: detail exists around a fire, not across the region.
@@ -203,8 +229,20 @@ export default function App() {
         filled: true,
         stroked: true,
         extruded: false,
-        pickable: false,
-        updateTriggers: { getFillColor: [liveStatus], getLineColor: [liveStatus] },
+        // Only an ACTIVE cell opens the detail panel — a risk-only square has no
+        // fire yet, nothing to click into. quadkeyToFireId only has entries for
+        // active cells (see groupActiveFires above), so a risk square's lookup
+        // misses and onClick below does nothing.
+        pickable: true,
+        onClick: ({ object }: { object?: Cell }) => {
+          const fireId = object && quadkeyToFireId.get(object.cell_id);
+          if (fireId) openSelection(fireId);
+        },
+        updateTriggers: {
+          getFillColor: [liveStatus],
+          getLineColor: [liveStatus],
+          onClick: [quadkeyToFireId],
+        },
       }),
       // The scar: cells the fire has already gone through. Painted under the flames,
       // unlit and not pulsing — it is where the fire HAS been, not where it is.
@@ -254,7 +292,7 @@ export default function App() {
         pickable: false,
       }),
     ],
-    [sim, tick, liveCells, liveStatus],
+    [sim, tick, liveCells, liveStatus, quadkeyToFireId],
   );
 
   return (
@@ -303,6 +341,7 @@ export default function App() {
       <Shell
         route={route}
         activeFires={simulating ? (sim.onFire ? 1 : 0) : (live.data?.activeCellIds.length ?? 0)}
+        liveFires={liveFires}
         live={simulating ? {
           areaHa: sim.burnedAreaHa,
           minutes: sim.minutes,

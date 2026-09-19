@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 
 import { analysisFor } from '../mocks/analysis.mock';
 import { fireById } from '../mocks/fires.mock';
+import type { Fire } from '../mocks/types';
+import type { LiveFireDetail } from '../live/groupFires';
+import { useFireActions } from '../live/useFireActions';
 import { ActionsCard } from './ActionsCard';
 import { FireInfoCard } from './FireInfoCard';
+import { LiveFireInfoCard } from './LiveFireInfoCard';
 import { Legend } from './Legend';
 import { PrioritiesCard } from './PrioritiesCard';
 import { MENU_STORAGE_KEY, readCollapsed } from './menuStorage';
@@ -39,6 +43,7 @@ export function Shell({
   simulating,
   onToggleSimulation,
   live,
+  liveFires,
 }: {
   route: Route;
   activeFires: number;
@@ -51,9 +56,12 @@ export function Shell({
    * detection source and no population at risk. See FireInfoCard.
    */
   live?: LiveFire;
+  /** Real Deepfire detections clicked on the map — see live/groupFires.ts. */
+  liveFires?: readonly LiveFireDetail[];
 }) {
   const fire = fireById(route.selection);
-  const open = fire !== null;
+  const liveFire = fire ? null : (liveFires?.find((f) => f.id === route.selection) ?? null);
+  const open = fire !== null || liveFire !== null;
 
   /*
    * The legend needs the menu's width too, so it can step aside instead of sitting
@@ -78,15 +86,25 @@ export function Shell({
    * ancestor from assistive technology is blocked by the browser. `inert` already does
    * both jobs — it removes the subtree from the accessibility tree and drops the focus.
    */
-  const [shown, setShown] = useState(fire);
+  // Either a mock Fire or a real LiveFireDetail — never both, route.selection matches
+  // at most one of the two lookups above. `cellIds` only exists on the live shape, so
+  // it doubles as the discriminant below instead of carrying a separate flag.
+  const selected = fire ?? liveFire;
+  const [shown, setShown] = useState(selected);
   // Entering is immediate and adjusted during render, not in an effect: waiting for an
   // effect would cost one frame with the panel empty.
-  if (fire && fire !== shown) setShown(fire);
+  if (selected && selected !== shown) setShown(selected);
   useEffect(() => {
-    if (fire) return;
+    if (selected) return;
     const timer = window.setTimeout(() => setShown(null), DURATION_MS);
     return () => window.clearTimeout(timer);
-  }, [fire]);
+  }, [selected]);
+
+  const shownIsLive = shown !== null && 'cellIds' in shown;
+  const { analysis: liveAnalysis, loading: liveLoading } = useFireActions(
+    shownIsLive ? (shown as LiveFireDetail) : null,
+  );
+  const analysis = shownIsLive ? liveAnalysis : shown ? analysisFor(shown.id) : null;
 
   // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
@@ -97,8 +115,6 @@ export function Shell({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
-
-  const analysis = shown ? analysisFor(shown.id) : null;
 
   return (
     <div className="pointer-events-none absolute inset-0 text-text">
@@ -142,7 +158,11 @@ export function Shell({
                 <ArrowLeftIcon />
               </button>
             </div>
-            <FireInfoCard fire={shown} live={live} />
+            {shownIsLive ? (
+              <LiveFireInfoCard fire={shown as LiveFireDetail} />
+            ) : (
+              shown && <FireInfoCard fire={shown as Fire} live={live} />
+            )}
           </div>
 
           {/* Right column, 360px: actions on top, priorities below. */}
@@ -152,10 +172,15 @@ export function Shell({
               open ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
             }`}
           >
+            {shownIsLive && liveLoading && (
+              <p className="p-4 text-meta text-muted">Generating recommended actions…</p>
+            )}
             {analysis && (
               <>
                 <ActionsCard analysis={analysis} />
-                <PrioritiesCard fire={shown} analysis={analysis} />
+                {/* PrioritiesCard needs values_at_risk, which a live detection does not
+                    have yet (no Deepfire endpoint for it) — mock fires only. */}
+                {!shownIsLive && <PrioritiesCard fire={shown as Fire} analysis={analysis} />}
               </>
             )}
           </div>
