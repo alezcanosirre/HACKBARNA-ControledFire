@@ -64,20 +64,3 @@ export function latestPerimeterPerCluster(
   }
   return latest;
 }
-
-/** El snapshot de perímetro más reciente de un cluster concreto, o null si Deepfire
- * todavía no le ha calculado ninguno. `clusterId` debe validarse como uuid antes de
- * llamar (ver isUuid en fireActions.ts). */
-export async function fetchLatestPerimeterByCluster(clusterId: string): Promise<LivePerimeter | null> {
-  const body = await fetchOgcFeatures<PerimeterProperties, MultiPolygonGeometry>(
-    "deepfire:satellite-perimeters",
-    {
-      "filter-lang": "cql2-text",
-      filter: `cluster_id = '${clusterId}'`,
-    },
-  );
-
-  const perimeters = body.features.filter((f) => f.geometry?.type === "MultiPolygon").map(toLivePerimeter);
-
-  return latestPerimeterPerCluster(perimeters).get(clusterId) ?? null;
-}

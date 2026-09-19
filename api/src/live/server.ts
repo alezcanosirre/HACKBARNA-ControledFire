@@ -1,7 +1,8 @@
 import "./loadEnv";
 import { createServer } from "node:http";
-import { buildLiveFireState, type LiveFireState } from "./liveFireState";
-import { getFireActions, isValidClusterId, NotFoundError } from "./fireActions";
+import { buildLiveFireState } from "./liveFireState";
+import { getLiveFireStore, setLiveFireError, setLiveFireState } from "./liveFireStore";
+import { getActionRecommendation, isValidIncidentId, NotFoundError } from "./actionRecommendation";
 
 const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
 // Satélite, no push: clusters/perímetros/hotspots no llegan más rápido que
@@ -10,39 +11,20 @@ const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
 // si se confirma un rate limit distinto en la doc de Deepfire.
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS ?? 2 * 60_000);
 
-interface Cache {
-  state: LiveFireState;
-  lastError: string | null;
-}
-
-// undefined = todavía no hemos completado ni un solo ciclo.
-let cache: Cache | undefined;
-
 async function pollOnce(): Promise<void> {
   try {
     const state = await buildLiveFireState();
-    cache = { state, lastError: null };
+    setLiveFireState(state);
     console.log(
-      `[live] ${state.hotspots.length} detección(es), ${state.activeCellIds.length} celda(s) ardiendo, ` +
-        `${state.riskCellIds.length} en riesgo`,
+      `[live] ${state.fires.length} incendio(s), ${state.hotspots.length} detección(es), ` +
+        `${state.activeCellIds.length} celda(s) ardiendo, ${state.riskCellIds.length} en riesgo`,
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
     console.error("[live] refresh failed:", message);
     // Se conserva el último dato bueno si lo hay — un fallo puntual de la
     // API no debe dejar el mapa en blanco.
-    cache = cache
-      ? { ...cache, lastError: message }
-      : {
-        state: {
-          fires: [],
-          activeCellIds: [],
-          riskCellIds: [],
-          hotspots: [],
-          fetchedAt: Date.now(),
-        },
-        lastError: message,
-      };
+    setLiveFireError(message, { fires: [], activeCellIds: [], riskCellIds: [], hotspots: [], fetchedAt: Date.now() });
   }
 }
 
@@ -69,36 +51,39 @@ const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
   if (req.method === "GET" && url.pathname === "/api/live-fires") {
-    if (!cache) {
+    const store = getLiveFireStore();
+    if (!store) {
       sendJson(res, 503, { error: "primera consulta a Deepfire todavía en curso" });
       return;
     }
-    sendJson(res, 200, { ...cache.state, error: cache.lastError });
+    sendJson(res, 200, { ...store.state, error: store.lastError });
     return;
   }
 
-  // POST /api/live-fires/:id/actions — genera (o sirve de caché) la propuesta de
-  // acciones de Nebius para un incendio real. Bajo demanda, no forma parte del ciclo
-  // de refresco de arriba: el id llega por la URL, el cuerpo de la petición se ignora
-  // porque el servidor ya sabe cómo traer los datos de ese cluster desde Deepfire.
+  // POST /api/live-fires/:id/actions — genera (o sirve de caché) la recomendación de
+  // Nebius para un incidente ACTUAL real. Bajo demanda, no forma parte del ciclo de
+  // refresco de arriba: el incidente se busca en el estado ya cacheado (nunca se
+  // vuelve a consultar Deepfire por su cuenta), y el cuerpo de la petición se ignora.
   const actionsMatch = url.pathname.match(/^\/api\/live-fires\/([^/]+)\/actions$/);
   if (req.method === "POST" && actionsMatch) {
-    const clusterId = decodeURIComponent(actionsMatch[1]);
-    if (!isValidClusterId(clusterId)) {
-      sendJson(res, 400, { error: "id de incendio inválido" });
+    const incidentId = decodeURIComponent(actionsMatch[1]);
+    if (!isValidIncidentId(incidentId)) {
+      sendJson(res, 400, { error: "id de incidente inválido" });
       return;
     }
 
-    getFireActions(clusterId)
-      .then((analysis) => sendJson(res, 200, analysis))
+    getActionRecommendation(incidentId)
+      .then((recommendation) => sendJson(res, 200, recommendation))
       .catch((err) => {
         if (err instanceof NotFoundError) {
           sendJson(res, 404, { error: err.message });
           return;
         }
+        // No debería llegar aquí — actionRecommendation.ts captura sus propios fallos
+        // y responde `status: "unavailable"` con 200. Esto es un último resguardo.
         const message = err instanceof Error ? err.message : "unknown error";
-        console.error(`[live] fire-actions para ${clusterId} falló:`, message);
-        sendJson(res, 502, { error: message });
+        console.error(`[live] fallo inesperado generando recomendación para ${incidentId}:`, message);
+        sendJson(res, 500, { error: "unexpected error" });
       });
     return;
   }

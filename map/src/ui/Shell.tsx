@@ -8,6 +8,7 @@ import type { LiveFireSummary } from '../live/types';
 import { useFireActions } from '../live/useFireActions';
 import { ActionsCard } from './ActionsCard';
 import { FireInfoCard } from './FireInfoCard';
+import { LiveActionsCard } from './LiveActionsCard';
 import { LiveFireInfoCard } from './LiveFireInfoCard';
 import { Legend } from './Legend';
 import { PrioritiesCard } from './PrioritiesCard';
@@ -118,16 +119,17 @@ export function Shell({
   // the shapes discriminate themselves without carrying a separate kind flag.
   const shownIsLive = shown !== null && 'cellIds' in shown;
   const shownIsRisk = shown !== null && 'risk_score' in shown;
-  const { analysis: liveAnalysis, loading: liveLoading, error: liveError } = useFireActions(
+  // Real detections get their own recommendation shape (ActionRecommendation, at most
+  // one grounded priority action) — never squeezed into the mock AIAnalysis contract
+  // that PRED and the simulated fires below still use unchanged.
+  const { analysis: liveRecommendation, loading: liveLoading, error: liveError } = useFireActions(
     shownIsLive ? (shown as LiveFireSummary) : null,
   );
-  const analysis = shownIsLive
-    ? liveAnalysis
-    : shownIsRisk
-      ? preventiveActionsFor((shown as Prediction).cell_id)
-      : shown
-        ? analysisFor(shown.id)
-        : null;
+  const analysis = shownIsRisk
+    ? preventiveActionsFor((shown as Prediction).cell_id)
+    : shown && !shownIsLive
+      ? analysisFor(shown.id)
+      : null;
 
   // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
@@ -218,18 +220,20 @@ export function Shell({
             {shownIsLive && liveError && (
               <p className="p-4 text-meta text-muted">Could not get AI actions: {liveError}</p>
             )}
-            {analysis && (
+            {shownIsLive && liveRecommendation && (
+              <LiveActionsCard recommendation={liveRecommendation} />
+            )}
+            {/* PRED and the simulated fires (Fase 8 mock cases) keep the old ranked-list
+                card untouched — only real Deepfire detections use LiveActionsCard above. */}
+            {!shownIsLive && analysis && (
               <>
                 <ActionsCard
                   analysis={analysis}
                   title={shownIsRisk ? 'Preventive actions' : 'Actions'}
                 />
                 {/* No priorities card on PRED: with risk there is no front to attack in
-                    order (UX.md §7). And a live detection has no values_at_risk yet —
-                    Deepfire has no endpoint for it — so it is mock fires only. */}
-                {!shownIsLive && !shownIsRisk && (
-                  <PrioritiesCard fire={shown as Fire} analysis={analysis} />
-                )}
+                    order (UX.md §7). */}
+                {!shownIsRisk && <PrioritiesCard fire={shown as Fire} analysis={analysis} />}
               </>
             )}
           </div>

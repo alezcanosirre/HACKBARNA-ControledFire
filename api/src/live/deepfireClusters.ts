@@ -45,26 +45,3 @@ export async function fetchActiveClustersInRmb(): Promise<LiveCluster[]> {
       lat: f.geometry.coordinates[1],
     }));
 }
-
-/** Un cluster concreto por id, sin restringir por bbox ni por `active` — lo pide el
- * endpoint de acciones (POST /api/live-fires/:id/actions), que ya conoce el id exacto
- * porque el operador lo clicó en el mapa. `clusterId` debe validarse como uuid ANTES de
- * llamar a esto (ver isUuid en fireActions.ts): va sin escapar dentro de un filtro CQL2. */
-export async function fetchClusterById(clusterId: string): Promise<LiveCluster | null> {
-  const body = await fetchOgcFeatures<ClusterProperties, PointGeometry>("deepfire:clusters", {
-    "filter-lang": "cql2-text",
-    filter: `id = '${clusterId}'`,
-    limit: "1",
-  });
-
-  const f = body.features.find((f) => f.geometry?.type === "Point");
-  if (!f) return null;
-
-  return {
-    id: rawClusterId(f.properties.id, f.id),
-    firstObserved: f.properties.first_observed,
-    lastObserved: f.properties.last_observed,
-    lng: f.geometry.coordinates[0],
-    lat: f.geometry.coordinates[1],
-  };
-}

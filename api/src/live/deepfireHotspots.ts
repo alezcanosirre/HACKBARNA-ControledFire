@@ -47,16 +47,3 @@ export async function fetchLiveHotspotsInRmb(): Promise<LiveHotspot[]> {
 
   return body.features.filter((f) => f.geometry?.type === "Point").map(toLiveHotspot);
 }
-
-/** Todos los hotspots de un cluster concreto, activos o no — para el endpoint de
- * acciones queremos su historial completo, no solo la ventana "activa ahora mismo".
- * `clusterId` debe validarse como uuid antes de llamar (ver isUuid en fireActions.ts). */
-export async function fetchHotspotsByCluster(clusterId: string): Promise<LiveHotspot[]> {
-  const body = await fetchOgcFeatures<HotspotProperties, PointGeometry>("deepfire:hotspots", {
-    "filter-lang": "cql2-text",
-    filter: `cluster_id = '${clusterId}'`,
-    limit: "500",
-  });
-
-  return body.features.filter((f) => f.geometry?.type === "Point").map(toLiveHotspot);
-}

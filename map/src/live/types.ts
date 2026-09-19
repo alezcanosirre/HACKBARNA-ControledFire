@@ -39,3 +39,39 @@ export interface LiveFireState {
   // campos en ese caso son el último dato bueno conocido, no vacío.
   readonly error: string | null;
 }
+
+// Debe reflejar api/src/live/actionRecommendation.ts — misma razón de la
+// duplicación que arriba, no hay path compartido entre los dos proyectos TS.
+// El backend siempre resuelve `recommendedAction.title` desde su catálogo, así
+// que aquí nunca hay que inventar un título: viene ya resuelto.
+export type RecommendationStatus = 'recommended' | 'insufficient_data' | 'unavailable';
+
+export interface EvidenceItem {
+  readonly field: string;
+  readonly explanation: string;
+}
+
+export interface RecommendedAction {
+  readonly id: string;
+  readonly title: string;
+  readonly reason: string;
+  readonly evidence: readonly EvidenceItem[];
+}
+
+/** Respuesta de POST /api/live-fires/:id/actions. A diferencia de la vieja AIAnalysis
+ * (mocks/types.ts), nunca hay una lista rankeada: como mucho una acción prioritaria,
+ * más ids complementarios sin texto propio (ver LIVE_ACTION_TITLES en LiveActionsCard). */
+export interface ActionRecommendation {
+  readonly incidentId: string;
+  readonly mode: 'ACTUAL';
+  readonly status: RecommendationStatus;
+  readonly generatedAt: string;
+  readonly incidentUpdatedAt: string | null;
+  readonly catalogVersion: string;
+  readonly summary: string;
+  readonly recommendedAction: RecommendedAction | null;
+  readonly complementaryActionIds: readonly string[];
+  readonly missingData: readonly string[];
+  readonly limitations: readonly string[];
+  readonly requiresHumanReview: true;
+}

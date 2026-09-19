@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 
-import type { AIAnalysis } from '../mocks/types';
-import type { LiveFireSummary } from './types';
+import type { ActionRecommendation, LiveFireSummary } from './types';
 
 /**
- * The real call: POST /api/live-fires/:id/actions (api/src/live/fireActions.ts) hands
- * the cluster's data to Nebius server-side and returns AIAnalysis (spec.md §6.4) — the
- * frontend never talks to Nebius directly, only to our own backend, proxied by Vite the
- * same way /api/live-fires already is.
+ * The real call: POST /api/live-fires/:id/actions (api/src/live/actionRecommendation.ts)
+ * hands the incident's own data to Nebius server-side and returns an ActionRecommendation
+ * — the frontend never talks to Nebius directly, only to our own backend, proxied by Vite
+ * the same way /api/live-fires already is. A 200 with `status: "unavailable"` is not an
+ * error: it is Nebius (or the key) being unreachable, already handled server-side.
  */
-async function fetchAnalysisFor(fire: LiveFireSummary): Promise<AIAnalysis> {
+async function fetchAnalysisFor(fire: LiveFireSummary): Promise<ActionRecommendation> {
   const res = await fetch(`/api/live-fires/${encodeURIComponent(fire.id)}/actions`, {
     method: 'POST',
   });
@@ -17,15 +17,15 @@ async function fetchAnalysisFor(fire: LiveFireSummary): Promise<AIAnalysis> {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `fire-actions request failed: ${res.status}`);
   }
-  return (await res.json()) as AIAnalysis;
+  return (await res.json()) as ActionRecommendation;
 }
 
 export function useFireActions(fire: LiveFireSummary | null): {
-  analysis: AIAnalysis | null;
+  analysis: ActionRecommendation | null;
   loading: boolean;
   error: string | null;
 } {
-  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<ActionRecommendation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
