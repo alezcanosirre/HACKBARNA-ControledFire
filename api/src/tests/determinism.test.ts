@@ -43,6 +43,9 @@ describe("determinism", () => {
       state = step(state, [
         { type: "DEPLOY_RESOURCE", resourceId: "brigade-1", target: { x: 2, y: 3 } },
       ]);
+      state = step(state, [
+        { type: "CREATE_FIREBREAK", target: [{ x: 0, y: 0 }, { x: 0, y: 1 }] },
+      ]);
       state = step(state, [{ type: "WAIT", minutes: 20 }]);
       return state;
     }

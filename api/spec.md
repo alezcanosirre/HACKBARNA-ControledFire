@@ -12,7 +12,10 @@ victory or defeat.
 ```ts
 createInitialState(scenario: Scenario): SimulationState
 step(state: SimulationState, actions: Action[]): SimulationState
-calculateOutcome(state: SimulationState): Outcome // not implemented yet
+calculateOutcome(state: SimulationState): Outcome
+createSnapshot(state: SimulationState): Snapshot
+restoreSnapshot(snapshot: Snapshot): SimulationState
+simulateStrategy(state: SimulationState, strategy: Strategy): SimulationState
 ```
 
 Both `createInitialState` and `step` are pure and deterministic: same input
@@ -58,6 +61,14 @@ state = step(state, [{ type: "DEPLOY_RESOURCE", resourceId: "brigade-1", target:
 Multiple actions can be sent in the same `step()` call (e.g. a `WAIT` plus
 a resource deployment); the Engine processes them in array order.
 
+`CREATE_FIREBREAK` also costs time — 5 simulated minutes per cell in the
+line — and the fire keeps propagating while it's under construction. If
+the fire reaches part of the line before the crew finishes, that stretch
+fails (stays whatever it burned to, not retroactively protected); only
+cells still `NORMAL` at completion become `PROTECTED`. So a `step()` call
+with a long firebreak can, on its own, trigger several propagation ticks —
+same as a long `WAIT`.
+
 ## Reading the result
 
 `SimulationState.cells` is the single source of truth for the map: each
@@ -72,18 +83,21 @@ and never write to either from the UI or the AI.
 
 ## Current implementation status
 
-| Piece | Status |
-| --- | --- |
-| `createInitialState` | done |
-| `step` — `WAIT` + time advance | done |
-| `step` — fire propagation (wind/slope/fuel/terrain, deterministic, 5-min ticks) | done |
-| `step` — `DEPLOY_RESOURCE` / `CREATE_FIREBREAK` | not implemented — actions are accepted but currently no-ops |
-| Fuel consumption | done (as part of propagation) |
-| Risk (`fireRisk`/`populationRisk`/`infrastructureRisk`) | not implemented — `risk: []` always |
-| `calculateOutcome` | not implemented |
-| Snapshots | not implemented |
-| `simulateStrategy` | not implemented |
-| Tests (Vitest) | not set up yet |
+Everything in the original Core roadmap is implemented: `createInitialState`,
+`step` (`WAIT`/time, fire propagation, `DEPLOY_RESOURCE`, `CREATE_FIREBREAK`,
+fuel consumption, risk, outcome), `calculateOutcome`, snapshots,
+`simulateStrategy`, and a Vitest suite (`api/src/tests`, run with `npm test`
+inside `api/`) covering all of it plus a dedicated determinism check and a
+balance-tested example scenario (`api/src/scenario/collserola.ts`).
 
-Until `DEPLOY_RESOURCE`/`CREATE_FIREBREAK` are implemented, sending them is
-harmless — they're recorded in `executedActions` but change nothing.
+Known gaps, not bugs:
+- `POLICE`/`DRONE` resources have no mechanic of their own yet — they only
+  do whatever `DEPLOY_RESOURCE`'s generic fire-intensity-reduction effect
+  does, so give them `effectiveness: 0` in a Scenario until that lands.
+- `RESOURCES_EXHAUSTED` in `calculateOutcome` can never actually trigger:
+  nothing puts a resource into `EXHAUSTED` (no uses-limit/durability
+  mechanic exists).
+- Risk is purely reactive (no distance-to-fire anticipation): a vulnerable/
+  `URBAN` cell shows risk only once the fire is literally on it.
+- A `Scenario`'s local `{x,y}` grid isn't yet anchored to a real lat/lng —
+  still an open integration point with `map/`'s quadkey grid.
