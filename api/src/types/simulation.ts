@@ -33,8 +33,9 @@ export interface CellState {
   readonly exposure: number; // 0+, accumulated ignition pressure while NORMAL
   // Denormalized from Scenario.infrastructure.vulnerableAreas at
   // createInitialState() time, same reasoning as terrainType/slope — lets
-  // risk calculation read only `cells`.
-  readonly isVulnerable: boolean;
+  // risk calculation read only `cells`. null when the cell isn't part of
+  // any named vulnerable area.
+  readonly vulnerableAreaId: string | null;
 }
 
 export interface FireCell {
@@ -57,6 +58,16 @@ export interface CellRisk {
 }
 
 export type RiskState = readonly CellRisk[];
+
+/** Same three dimensions as CellRisk, aggregated (max) across one named vulnerable area. */
+export interface AreaRisk {
+  readonly areaId: string;
+  readonly fireRisk: number; // 0-1
+  readonly populationRisk: number; // 0-1
+  readonly infrastructureRisk: number; // 0-1
+}
+
+export type RiskByArea = readonly AreaRisk[];
 
 export interface ResourceState {
   readonly id: ResourceId;

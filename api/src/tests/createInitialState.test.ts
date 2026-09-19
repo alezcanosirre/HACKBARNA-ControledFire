@@ -38,15 +38,15 @@ describe("createInitialState", () => {
     expect(state.cells[0]).toMatchObject({ terrainType: "URBAN", slope: 0.4, remainingFuel: 0.6 });
   });
 
-  it("marks cells inside a vulnerable area as isVulnerable", () => {
+  it("marks cells inside a vulnerable area with that area's id", () => {
     const scenario = buildScenario({
       infrastructure: { vulnerableAreas: [{ id: "town", name: "Town", cells: [{ x: 0, y: 0 }] }] },
     });
     const state = createInitialState(scenario);
     const town = state.cells.find((c) => c.position.x === 0 && c.position.y === 0)!;
     const elsewhere = state.cells.find((c) => c.position.x === 1 && c.position.y === 0)!;
-    expect(town.isVulnerable).toBe(true);
-    expect(elsewhere.isVulnerable).toBe(false);
+    expect(town.vulnerableAreaId).toBe("town");
+    expect(elsewhere.vulnerableAreaId).toBeNull();
   });
 
   it("copies resources with AVAILABLE status and their effectiveness", () => {

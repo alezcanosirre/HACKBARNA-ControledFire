@@ -1,6 +1,7 @@
 import type { CellRisk, CellState, RiskState, SimulationState } from "../../types";
 
-function fireRiskOf(cell: CellState): number {
+/** Shared by calculateRisk and calculateRiskByArea, so the formula lives in one place. */
+export function fireRiskOf(cell: CellState): number {
   if (cell.status === "BURNING") return cell.intensity;
   if (cell.status === "NORMAL") return Math.min(1, cell.exposure);
   return 0; // BURNED, PROTECTED: no longer a fire risk
@@ -23,7 +24,7 @@ export function calculateRisk(state: SimulationState): RiskState {
     return {
       position: cell.position,
       fireRisk,
-      populationRisk: cell.isVulnerable ? fireRisk : 0,
+      populationRisk: cell.vulnerableAreaId !== null ? fireRisk : 0,
       infrastructureRisk: cell.terrainType === "URBAN" ? fireRisk : 0,
     };
   });

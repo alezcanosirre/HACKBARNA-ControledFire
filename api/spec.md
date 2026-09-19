@@ -81,6 +81,30 @@ and never write to either from the UI or the AI.
 `SimulationState.events` is an Engine-authored, factual log (e.g. "Esperado
 5 minutos.") — safe to render directly or feed to the AI for narration.
 
+## Priorities panel: risk aggregated by zone
+
+`calculateRiskByArea(state)` (not part of `SimulationState`, computed on
+demand like `calculateOutcome`) groups `RiskState` by named vulnerable area
+instead of by cell — one `{areaId, fireRisk, populationRisk,
+infrastructureRisk}` per area, each dimension the MAX across that area's
+cells. `areaId` matches `Scenario.infrastructure.vulnerableAreas[].id`; the
+caller already has the Scenario it used to start the run, so it looks up
+the area's `name` from there rather than the Engine duplicating it.
+
+This gives the **numbers**; it does not decide what to do about them. A
+"priority list" like "evacuate this zone first, then close that one" is an
+interpretation of these numbers — that's `Strategy`/AI territory, same as
+everywhere else: the Engine computes, the AI proposes.
+
+## Strategy vs Review
+
+`Strategy` (already existed) is forward-looking: the AI reads the current
+state + `calculateRiskByArea` and proposes what to do next, via
+`simulateStrategy()`. `Review` is the mirror, backward-looking: an
+after-action critique of a finished (or finishing) run. Like `Strategy`,
+the Engine only defines `Review`'s shape — producing one is entirely the
+AI's job, from `events`/before-after state; no Engine function builds one.
+
 ## Current implementation status
 
 Everything in the original Core roadmap is implemented: `createInitialState`,

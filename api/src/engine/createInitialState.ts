@@ -20,9 +20,12 @@ function positionKey(position: Position): string {
  */
 export function createInitialState(scenario: Scenario): SimulationState {
   const ignitionKeys = new Set(scenario.initialFire.ignitionCells.map(positionKey));
-  const vulnerableKeys = new Set(
-    scenario.infrastructure.vulnerableAreas.flatMap((area) => area.cells.map(positionKey)),
-  );
+  const vulnerableAreaByKey = new Map<string, string>();
+  for (const area of scenario.infrastructure.vulnerableAreas) {
+    for (const position of area.cells) {
+      vulnerableAreaByKey.set(positionKey(position), area.id);
+    }
+  }
 
   const cells: CellState[] = scenario.terrain.map((terrainCell) => {
     const isIgnition = ignitionKeys.has(positionKey(terrainCell.position));
@@ -34,7 +37,7 @@ export function createInitialState(scenario: Scenario): SimulationState {
       slope: terrainCell.slope,
       intensity: isIgnition ? scenario.initialFire.initialIntensity : 0,
       exposure: 0,
-      isVulnerable: vulnerableKeys.has(positionKey(terrainCell.position)),
+      vulnerableAreaId: vulnerableAreaByKey.get(positionKey(terrainCell.position)) ?? null,
     };
   });
 
