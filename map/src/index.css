@@ -1,12 +1,86 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
+/*
+ * Tokens de DESIGN.md. Todo lo que pinta la interfaz sale de aquí: en los componentes
+ * no hay ni un color literal. Si un token falta, se añade en este bloque, no en una
+ * clase arbitraria.
+ */
+@theme {
+  /* --- Superficies (DESIGN.md §1) --- */
+  --color-night-900: #0C1220;   /* fondo de la aplicación */
+  --color-night-800: #131C2E;   /* paneles, tarjetas */
+  --color-night-700: #1D2840;   /* bordes y separadores, 1px */
+
+  /* --- Texto (DESIGN.md §1) --- */
+  --color-text: #E4EBF5;        /* principal    15,58:1 sobre night-900  AAA */
+  --color-muted: #8e8ea0;       /* secundario    5,81:1 sobre night-900  AA  */
+  --color-dim: #8FA3BF;         /* terciario     7,27:1 sobre night-900  AAA */
+
+  /* --- Interacción (DESIGN.md §1) --- */
+  --color-primary: #8e8ea0;
+  --color-on-primary: #0C1220;  /* NO blanco: blanco sobre primary da 3,22:1 */
+
+  /* Único estado con color de la interfaz: acción aceptada. */
+  --color-signal: #4ADE80;      /* 10,73:1 sobre night-900  AAA */
+
+  /*
+   * --- Colores de DATO (spec.md §4.7) ---
+   * Los cálidos viven aquí y solo los usan las celdas del mapa y la leyenda que las
+   * explica. Ningún botón, borde ni badge los toca (DESIGN.md §1, UX.md §0).
+   * El mapa hoy solo pinta NORMAL y BURNING (src/map/colors.ts); la leyenda enseña
+   * los cinco estados del spec.
+   */
+  --color-cell-watch: #60A5FA;
+  --color-cell-watch-line: #93C5FD;
+  --color-cell-risk: #FFB020;
+  --color-cell-risk-line: #FFC45C;
+  --color-cell-active: #EC381C;
+  --color-cell-active-line: #FF8A5C;
+  --color-cell-contained: #7A7A8A;
+  --color-cell-contained-line: #A0A0AF;
+  --color-cell-grid: #94A3B8;
+
+  /* --- Tipografía (DESIGN.md §2) --- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --text-display: 40px;         /* solo el % de riesgo y la superficie afectada */
+  --text-display--line-height: 1.1;
+  --text-display--font-weight: 700;
+  --text-heading: 20px;
+  --text-heading--line-height: 1.3;
+  --text-heading--font-weight: 600;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-label: 14px;
+  --text-label--line-height: 1.4;
+  --text-label--font-weight: 500;
+  --text-meta: 12px;
+  --text-meta--line-height: 1.4;
+
+  /* --- Forma (DESIGN.md §4): un solo radio, y cero sombras --- */
+  --radius-sm: 5px;
+  --radius-md: 5px;
+
+  /* --- Movimiento (DESIGN.md §5): un token para toda la interfaz --- */
+  --default-transition-duration: 400ms;
+  --default-transition-timing-function: ease;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
 }
 
 body {
-  background: #0C1220;
-  font-family: system-ui, sans-serif;
+  background: var(--color-night-900);
+  font-family: var(--font-sans);
+}
+
+/* DESIGN.md §5. El pulso de las celdas lo apaga el mapa por su cuenta (spec §4.8). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import DeckGL from '@deck.gl/react';
 import { Map } from 'react-map-gl/maplibre';
 import { FlyToInterpolator, type MapViewState } from '@deck.gl/core';
@@ -17,6 +17,8 @@ import {
 import { STATUS_FILL, STATUS_STROKE, pulsed } from './map/colors';
 import { usePulse } from './map/pulse';
 import { clampToArea, focusOn } from './map/view';
+import { Shell } from './ui/Shell';
+import { clearSelection, openSelection, useRoute } from './ui/route';
 
 type Outline = (typeof FIRE_OUTLINES)[number];
 
@@ -27,36 +29,46 @@ export default function App() {
   // El acotado necesita saber cuánta pantalla hay. deck.gl lo mide y lo avisa en
   // onResize; se guarda en una ref porque no tiene que provocar re-render por sí mismo.
   const size = useRef({ width: 0, height: 0 });
+  // deck.gl mide después del primer render. Sin esta señal, entrar por una URL con
+  // foco (`/actual/fire-3`) dejaba el panel abierto y la cámara donde estaba: el
+  // efecto de encuadre se ejecutaba con 0x0 y se rendía. Ver onResize.
+  const [measured, setMeasured] = useState(false);
+
+  // La selección no es estado de este componente: vive en la URL (UX.md §1). Así
+  // recargar no pierde el sitio, el botón de volver y Esc entran por el mismo sitio
+  // que el clic, y la demo se puede saltar a un foco concreto si algo falla.
+  const route = useRoute();
   // Se selecciona el INCENDIO, no la celda: un foco es un incidente, y todas sus
   // celdas contiguas son la misma cosa.
-  const [selectedFire, setSelectedFire] = useState<string | null>(null);
+  const selectedFire = route.page === 'actual' ? route.selection : null;
 
   // Latido de las celdas con estado. Ver spec.md §4.8.
   const tick = usePulse(STATUS_CELLS.length > 0);
 
-  const fire = useMemo(
-    () => FIRES.find((f) => f.id === selectedFire) ?? null,
-    [selectedFire],
-  );
-
   /**
    * Seleccionar un foco encuadra la cámara sobre él. Es la confirmación de que el clic
    * ha ido donde el operador creía: la pantalla se mueve al sitio.
+   *
+   * Va en un efecto sobre la ruta y no en el manejador del clic porque la selección
+   * puede llegar también del historial o de una URL pegada, y en esos dos casos la
+   * cámara tiene que ir igual.
    */
-  function selectFire(id: string | null) {
-    setSelectedFire(id);
-    const target = id ? FIRES.find((f) => f.id === id) : null;
+  useEffect(() => {
+    const target = selectedFire ? FIRES.find((f) => f.id === selectedFire) : null;
     if (!target) return;
 
     const { width, height } = size.current;
-    // Actualización funcional: la capa que llama a esto está memoizada y su closure
-    // podría llevar un viewState viejo.
+    // deck.gl todavía no ha medido: encuadrar con 0x0 daría un zoom sin sentido.
+    if (!width || !height) return;
+
+    // Actualización funcional: el efecto no depende de viewState, así que su closure
+    // llevaría uno viejo.
     setViewState((prev) => ({
       ...focusOn(target.bounds, prev, width, height),
       transitionDuration: FOCUS_MS,
       transitionInterpolator: new FlyToInterpolator(),
     }) as MapViewState);
-  }
+  }, [selectedFire, measured]);
 
   const layers = useMemo(
     () => [
@@ -89,7 +101,11 @@ export default function App() {
         stroked: true,
         extruded: false,
         pickable: true,
-        onClick: ({ object }) => selectFire(object ? fireOf((object as Cell).cell_id) : null),
+        onClick: ({ object }) => {
+          const id = object ? fireOf((object as Cell).cell_id) : null;
+          if (id) openSelection(id);
+          else clearSelection();
+        },
         updateTriggers: { getFillColor: [tick] },
       }),
       // El contorno del incendio, no el de cada celda: solo los lados que dan afuera.
@@ -116,11 +132,12 @@ export default function App() {
   );
 
   return (
-    <div className="h-full w-full bg-[#0C1220]">
+    <div className="relative h-full w-full bg-night-900">
       <DeckGL
         viewState={viewState}
         onResize={({ width, height }) => {
           size.current = { width, height };
+          if (width && height) setMeasured(true);
         }}
         onViewStateChange={({ viewState: next, interactionState }) => {
           // Durante el vuelo no se acota: el destino ya venía acotado, y corregir cada
@@ -144,21 +161,15 @@ export default function App() {
         // Pulsar fuera de un incendio deselecciona. La rejilla base no es pickable, así
         // que cualquier clic que no acierte una celda que arde llega aquí sin objeto.
         onClick={({ object }) => {
-          if (!object) setSelectedFire(null);
+          if (!object) clearSelection();
         }}
         getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'grab')}
       >
         <Map mapStyle={BASEMAP} reuseMaps />
       </DeckGL>
 
-      <div className="absolute bottom-4 left-4 rounded border border-[#1D2840] bg-[#131C2E]/90 px-3 py-2 text-xs text-[#8FA3BF]">
-        {FIRES.length} focos ·{' '}
-        <span className="text-[#E4EBF5]">
-          {fire
-            ? `foco ${fire.id.split('-')[1]} · ${fire.cells.length} celdas · ${fire.areaKm2.toFixed(0)} km²`
-            : 'ninguno seleccionado'}
-        </span>
-      </div>
+      {/* Toda la interfaz va en una sola capa flotante encima del mapa. Ver UX.md §2. */}
+      <Shell route={route} activeFires={FIRES.length} />
     </div>
   );
 }

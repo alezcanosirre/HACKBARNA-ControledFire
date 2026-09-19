@@ -4,7 +4,7 @@
 con la rejilla hexagonal H3 encima, navegable y con la celda pulsada identificada.
 Sin UI, sin paneles, sin menú. Solo el mapa y el cuadrante.
 
-**Spec:** `map/spec.md` (secciones 3 y 4)
+**Spec:** `map/spec.md` (§3 y §4) · **Tokens de UI:** `map/DESIGN.md`
 
 **Tiempo estimado:** 60–90 min si no se tuerce nada.
 
@@ -59,7 +59,7 @@ map/
 ├── index.html
 └── src/
     ├── main.tsx             punto de entrada
-    ├── index.css            tailwind + css de maplibre + altura 100%
+    ├── index.css            tailwind + tokens de DESIGN.md + css de maplibre
     ├── App.tsx              monta DeckGL + Map
     └── map/
         ├── constants.ts     resoluciones, vistas, bbox, basemap
@@ -118,7 +118,10 @@ git commit -m "chore(map): scaffold vite + react + ts"
 
 ---
 
-## Tarea 1 — Tailwind y lienzo a pantalla completa
+## Tarea 1 — Tailwind, tokens y lienzo a pantalla completa
+
+Aquí entran los tokens de `DESIGN.md` como utilidades de Tailwind. A partir de esta
+tarea no se escribe ni un color a mano: `bg-night-900`, no `bg-[#0C1220]`.
 
 El mapa necesita un contenedor con altura real. Si `#root` no tiene altura, deck.gl
 renderiza un canvas de 0px y ves una pantalla negra sin ningún error. Es el fallo más
@@ -151,19 +154,48 @@ Reemplaza `src/index.css` entero:
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
+/* Tokens de map/DESIGN.md. @theme los expone como utilidades de Tailwind v4:
+   --color-night-900 se usa como bg-night-900, text-night-900, border-night-900. */
+@theme {
+  --color-night-900: #0C1220;   /* fondo de la aplicación */
+  --color-night-800: #131C2E;   /* paneles, tarjetas */
+  --color-night-700: #1D2840;   /* bordes y separadores */
+
+  --color-text:      #E4EBF5;   /* principal    15,58:1  AAA */
+  --color-text-dim:  #8FA3BF;   /* terciario     7,27:1  AAA */
+  --color-muted:     #8e8ea0;   /* secundario    5,81:1  AA  */
+
+  --color-primary:    #8e8ea0;
+  --color-on-primary: #0C1220;  /* oscuro, NO blanco: blanco da 3,22:1 y falla AA */
+  --color-signal:     #4ADE80;  /* acción aceptada  10,73:1  AAA */
+
+  --radius-sm: 5px;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
 }
 
 body {
-  background: #0C1220;
-  font-family: system-ui, sans-serif;
+  background: var(--color-night-900);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; }
 }
 ```
 
 El `@import` de maplibre es obligatorio. Sin él, los controles del mapa salen
 descolocados por la pantalla.
+
+El bloque `@theme` es la forma de Tailwind v4 de registrar tokens: no hay
+`tailwind.config.js`. A partir de aquí se escribe `bg-night-900`, no `bg-[#0C1220]`.
+Los ratios de contraste de los comentarios están calculados, no estimados; la
+justificación de cada uno está en `DESIGN.md` §1.
 
 - [ ] **Paso 3: Vaciar la plantilla**
 
@@ -176,8 +208,8 @@ Y reemplaza `src/App.tsx` entero:
 ```tsx
 export default function App() {
   return (
-    <div className="h-full w-full bg-[#0C1220] flex items-center justify-center">
-      <span className="text-[#8FA3BF] text-sm">lienzo listo</span>
+    <div className="h-full w-full bg-night-900 flex items-center justify-center">
+      <span className="text-text-dim text-sm">lienzo listo</span>
     </div>
   );
 }
@@ -186,13 +218,15 @@ export default function App() {
 - [ ] **Paso 4: Comprobar**
 
 **Qué tienes que ver:** pantalla entera azul muy oscuro (no negro), con «lienzo listo»
-en gris centrado. Si el texto no está centrado verticalmente, la altura no llega:
+en gris centrado. Que el texto salga gris confirma que los tokens del `@theme` se han
+registrado: si `text-text-dim` no existiera, Tailwind lo ignora en silencio y el texto
+saldría del color heredado del body, casi blanco. Si el texto no está centrado verticalmente, la altura no llega:
 revisa el `html, body, #root { height: 100% }`.
 
 - [ ] **Paso 5: Commit**
 
 ```bash
-git add -A && git commit -m "feat(map): tailwind v4 y lienzo a pantalla completa"
+git add -A && git commit -m "feat(map): tailwind v4, tokens de diseño y lienzo a pantalla completa"
 ```
 
 ---
@@ -244,7 +278,7 @@ import { BASEMAP, VIEW_CATALUNYA } from './map/constants';
 
 export default function App() {
   return (
-    <div className="h-full w-full bg-[#0C1220]">
+    <div className="h-full w-full bg-night-900">
       <Map
         initialViewState={VIEW_CATALUNYA}
         mapStyle={BASEMAP}
@@ -407,7 +441,7 @@ export default function App() {
   );
 
   return (
-    <div className="h-full w-full bg-[#0C1220]">
+    <div className="h-full w-full bg-night-900">
       <DeckGL
         initialViewState={VIEW_CATALUNYA}
         controller={{ dragRotate: false }}
@@ -488,7 +522,7 @@ export default function App() {
   );
 
   return (
-    <div className="h-full w-full bg-[#0C1220]">
+    <div className="h-full w-full bg-night-900">
       <DeckGL
         initialViewState={VIEW_CATALUNYA}
         controller={{ dragRotate: false }}
@@ -498,9 +532,9 @@ export default function App() {
         <Map mapStyle={BASEMAP} reuseMaps />
       </DeckGL>
 
-      <div className="absolute bottom-4 left-4 rounded border border-[#1D2840] bg-[#131C2E]/90 px-3 py-2 text-xs text-[#8FA3BF]">
+      <div className="absolute bottom-4 left-4 rounded-sm border border-night-700 bg-night-800/90 px-4 py-2 text-xs text-text-dim">
         {PRED_CELLS.length} celdas ·{' '}
-        <span className="text-[#E4EBF5]">{selected?.cell_id ?? 'ninguna seleccionada'}</span>
+        <span className="text-text">{selected?.cell_id ?? 'ninguna seleccionada'}</span>
       </div>
     </div>
   );

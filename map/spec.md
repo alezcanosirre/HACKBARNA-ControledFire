@@ -693,47 +693,34 @@ un `setInterval` que llama a `step()` en vez de un `fetch`.
 
 ## 7. Sistema visual
 
+**Los tokens viven en `map/DESIGN.md`.** Ese documento manda: colores, tipografía,
+espaciado, radios, movimiento y accesibilidad. Aquí queda solo lo que es propio del
+dominio y no de la interfaz.
+
 La referencia no es un panel de SaaS. Es una consola de sala de operaciones: densa,
 oscura, legible bajo presión, sin nada que sobre.
 
-### Color
-
-```
---night-900  #0C1220   fondo de la aplicación (azul profundo, no negro)
---night-800  #131C2E   paneles
---night-700  #1D2840   bordes y separadores
---haze-400   #8FA3BF   texto secundario
---haze-100   #E4EBF5   texto principal
---signal     #4ADE80   confirmación (acción aceptada)
-```
+### La regla del color cálido
 
 Los cálidos —ámbar, naranja, rojo— **solo aparecen como dato de fuego**, en el mapa y en
 los indicadores que se refieren directamente a él. Ningún botón, ninguna cabecera, ningún
 borde decorativo usa esa gama. Es una restricción autoimpuesta y es la que hace que la
 pantalla se lea: si algo arde en la interfaz, arde en el mundo.
 
-El fondo es azul nocturno y no negro puro, para que el basemap oscuro se integre en lugar
-de flotar sobre un recorte.
+Esta regla es del proyecto, no del sistema de diseño, y por eso vive aquí. El sistema de
+`DESIGN.md` la respalda: no trae ningún color de acento, así que no hay tentación que
+resistir.
 
-### Tipografía
+La paleta de las celdas (§4.7) es lo único que puede usar cálidos, y es dato, no estilo.
 
-Una sola familia en dos anchos:
+El fondo es azul nocturno (`#0C1220`) y no negro puro, para que el basemap oscuro se
+integre en lugar de flotar sobre un recorte.
 
-- **IBM Plex Sans** — texto, títulos, botones.
-- **IBM Plex Sans Condensed** — cifras densas, etiquetas de tabla, datos de la barra
-  superior. El ancho condensado permite meter más dato en el panel sin reducir el cuerpo.
+### Cifras grandes
 
-Escala: 12 / 14 / 16 / 20 / 28 / 40. El 40 se reserva para dos cosas: el porcentaje de
-riesgo en PRED y la superficie afectada en ACTUAL. Son los números por los que alguien
-abre el panel.
-
-No usar mayúsculas forzadas en etiquetas ni fuente monoespaciada para datos pequeños.
-Ninguna de las dos cosas mejora la legibilidad aquí y ambas son tics de plantilla.
-
-### Densidad
-
-Radios pequeños (4px en tarjetas, 2px en botones). Nada de sombras difusas: separación
-por línea de 1px o por cambio de fondo. Una sala de control no tiene tarjetas flotantes.
+El escalón `display` (40px) se reserva para dos cosas y nada más: el porcentaje de riesgo
+en PRED y la superficie afectada en ACTUAL. Son los números por los que alguien abre el
+panel.
 
 ### Copy
 
