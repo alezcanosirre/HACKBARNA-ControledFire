@@ -6,6 +6,7 @@ import type {
   Scenario,
   SimulationState,
 } from "../types";
+import { calculateRisk } from "./risk/calculateRisk";
 
 function positionKey(position: Position): string {
   return `${position.x},${position.y}`;
@@ -14,11 +15,13 @@ function positionKey(position: Position): string {
 /**
  * Turns a Scenario (static config) into the SimulationState at time 0.
  * Does not simulate anything: fire has not spread, resources have not
- * acted, risk has not been computed yet (left empty until the risk module
- * exists).
+ * acted — risk is computed once, from that untouched initial state.
  */
 export function createInitialState(scenario: Scenario): SimulationState {
   const ignitionKeys = new Set(scenario.initialFire.ignitionCells.map(positionKey));
+  const vulnerableKeys = new Set(
+    scenario.infrastructure.vulnerableAreas.flatMap((area) => area.cells.map(positionKey)),
+  );
 
   const cells: CellState[] = scenario.terrain.map((terrainCell) => {
     const isIgnition = ignitionKeys.has(positionKey(terrainCell.position));
@@ -30,6 +33,7 @@ export function createInitialState(scenario: Scenario): SimulationState {
       slope: terrainCell.slope,
       intensity: isIgnition ? scenario.initialFire.initialIntensity : 0,
       exposure: 0,
+      isVulnerable: vulnerableKeys.has(positionKey(terrainCell.position)),
     };
   });
 
@@ -47,7 +51,7 @@ export function createInitialState(scenario: Scenario): SimulationState {
     effectiveness: resource.effectiveness,
   }));
 
-  return {
+  const state: SimulationState = {
     scenarioId: scenario.id,
     time: { current: 0 },
     environment: scenario.initialEnvironment,
@@ -65,4 +69,6 @@ export function createInitialState(scenario: Scenario): SimulationState {
       elapsedMinutes: 0,
     },
   };
+
+  return { ...state, risk: calculateRisk(state) };
 }

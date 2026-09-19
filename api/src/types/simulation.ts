@@ -31,6 +31,10 @@ export interface CellState {
   // Engine recomputes from these, never independent state to keep in sync.
   readonly intensity: number; // 0-1, meaningful only while BURNING
   readonly exposure: number; // 0+, accumulated ignition pressure while NORMAL
+  // Denormalized from Scenario.infrastructure.vulnerableAreas at
+  // createInitialState() time, same reasoning as terrainType/slope — lets
+  // risk calculation read only `cells`.
+  readonly isVulnerable: boolean;
 }
 
 export interface FireCell {
