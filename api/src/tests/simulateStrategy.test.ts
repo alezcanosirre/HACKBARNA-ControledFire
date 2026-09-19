@@ -14,6 +14,7 @@ describe("simulateStrategy", () => {
           type: "BRIGADE",
           startPosition: { x: 0, y: 0 },
           effectiveness: 0.9,
+          arrivalMinutes: 5,
         },
       ],
     });

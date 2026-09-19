@@ -36,6 +36,10 @@ export interface CellState {
   // risk calculation read only `cells`. null when the cell isn't part of
   // any named vulnerable area.
   readonly vulnerableAreaId: string | null;
+  // Set by a POLICE deployment. Only meaningful when vulnerableAreaId is
+  // set: an evacuated cell still burns and still threatens infrastructure,
+  // it just no longer counts towards populationRisk — nobody's there.
+  readonly evacuated: boolean;
 }
 
 export interface FireCell {
@@ -75,9 +79,10 @@ export interface ResourceState {
   readonly position: Position;
   readonly status: ResourceStatus;
   readonly busyUntil: SimMinutes | null; // null when not on cooldown
-  // effectiveness is static in Scenario but copied here at
+  // effectiveness/arrivalMinutes are static in Scenario but copied here at
   // createInitialState() time, same reasoning as CellState's terrainType/slope.
   readonly effectiveness: number; // 0-1, how much this resource reduces fire when deployed
+  readonly arrivalMinutes: number;
 }
 
 /** Engine-authored, factual log line. The AI reads this; it never writes to it. */

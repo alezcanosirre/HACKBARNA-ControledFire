@@ -41,6 +41,10 @@ export interface ResourceConfig {
   readonly type: ResourceType;
   readonly startPosition: Position;
   readonly effectiveness: number; // 0-1, how much this resource reduces fire when deployed
+  // Multiple of 5 (TICK_MINUTES), same reasoning as WAIT/CREATE_FIREBREAK's
+  // timing: how long from dispatch until this resource's effect applies.
+  // The fire keeps propagating during that time.
+  readonly arrivalMinutes: number;
 }
 
 export interface MissionConfig {

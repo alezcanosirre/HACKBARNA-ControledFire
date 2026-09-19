@@ -52,12 +52,18 @@ function buildTerrain(): TerrainCell[] {
 const terrain = buildTerrain();
 
 /**
- * Balance, checked with a crude "attack the hottest burning cell" playtest
- * (see api/src/tests/collserola.test.ts): doing nothing loses (~95min,
- * ~43ha burned); reacting within ~10-15min of the ignition is enough to
- * put it out; waiting 20min+ to react is already too late for this
- * roster. That gives a real decision window instead of an always-win or
- * always-lose scenario.
+ * Balance, checked with a crude "send the nearest AVAILABLE firefighter to
+ * the hottest burning cell, one at a time" playtest (see
+ * api/src/tests/collserola.test.ts) — one at a time because dispatching
+ * several resources in the same step() call stacks their arrival times
+ * sequentially rather than resolving them in parallel (see
+ * deployResource.ts); that's how this Engine models it for now, so it's
+ * how the scenario is tuned. Doing nothing loses (~135min, ~106ha
+ * burned). Reacting anywhere from immediately up to ~20min after ignition
+ * wins (takes ~230-240min and ~88-95ha to fully contain — arrival delays
+ * make firefighting much slower than it used to be, hence the more
+ * generous mission budget vs the pre-arrival-time version); waiting
+ * 30min+ is already too late for this roster.
  */
 export const collserolaScenario: Scenario = {
   id: "collserola-v1",
@@ -82,16 +88,20 @@ export const collserolaScenario: Scenario = {
   initialFire: { ignitionCells: [{ x: 6, y: 10 }], initialIntensity: 0.6 },
   // Hot, dry, windy — wind FROM the NW blows the fire SE, towards Vallvidrera.
   initialEnvironment: { temperature: 32, humidity: 0.15, wind: { speed: 25, direction: 315 } },
+  // arrivalMinutes: ground units are close and fast (5min); the
+  // helicopter is far more effective but much slower to scramble and fly
+  // in (15min) — a real speed-vs-power tradeoff. Multiples of 5
+  // (TICK_MINUTES) so no travel time is lost to rounding.
   initialResources: [
-    { id: "brigade-sant-cugat", name: "Brigada Sant Cugat", type: "BRIGADE", startPosition: { x: 2, y: 2 }, effectiveness: 0.6 },
-    { id: "brigade-vallvidrera", name: "Brigada Vallvidrera", type: "BRIGADE", startPosition: { x: 17, y: 12 }, effectiveness: 0.6 },
-    { id: "truck-1", name: "Autobomba 1", type: "TRUCK", startPosition: { x: 4, y: 6 }, effectiveness: 0.5 },
-    { id: "truck-2", name: "Autobomba 2", type: "TRUCK", startPosition: { x: 14, y: 8 }, effectiveness: 0.5 },
-    { id: "heli-1", name: "Helicóptero 1", type: "HELICOPTER", startPosition: { x: 10, y: 7 }, effectiveness: 0.9 },
-    // POLICE/DRONE have no fire-suppression mechanic yet (see calculateOutcome.ts /
-    // resources/deployResource.ts) — effectiveness 0 so deploying them is a safe no-op.
-    { id: "police-1", name: "Policía 1", type: "POLICE", startPosition: { x: 15, y: 11 }, effectiveness: 0 },
-    { id: "drone-1", name: "Dron 1", type: "DRONE", startPosition: { x: 10, y: 5 }, effectiveness: 0 },
+    { id: "brigade-sant-cugat", name: "Brigada Sant Cugat", type: "BRIGADE", startPosition: { x: 2, y: 2 }, effectiveness: 0.6, arrivalMinutes: 5 },
+    { id: "brigade-vallvidrera", name: "Brigada Vallvidrera", type: "BRIGADE", startPosition: { x: 17, y: 12 }, effectiveness: 0.6, arrivalMinutes: 5 },
+    { id: "truck-1", name: "Autobomba 1", type: "TRUCK", startPosition: { x: 4, y: 6 }, effectiveness: 0.5, arrivalMinutes: 5 },
+    { id: "truck-2", name: "Autobomba 2", type: "TRUCK", startPosition: { x: 14, y: 8 }, effectiveness: 0.5, arrivalMinutes: 5 },
+    { id: "heli-1", name: "Helicóptero 1", type: "HELICOPTER", startPosition: { x: 10, y: 7 }, effectiveness: 0.9, arrivalMinutes: 15 },
+    // POLICE evacuates (see deployResource.ts); DRONE only logs a recon
+    // event. Neither fights fire, so effectiveness is unused for them.
+    { id: "police-1", name: "Policía 1", type: "POLICE", startPosition: { x: 15, y: 11 }, effectiveness: 0, arrivalMinutes: 5 },
+    { id: "drone-1", name: "Dron 1", type: "DRONE", startPosition: { x: 10, y: 5 }, effectiveness: 0, arrivalMinutes: 0 },
   ],
-  mission: { timeLimitMinutes: 180, maxBurnedAreaHa: 40 },
+  mission: { timeLimitMinutes: 260, maxBurnedAreaHa: 100 },
 };

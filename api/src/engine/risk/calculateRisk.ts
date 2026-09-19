@@ -14,9 +14,11 @@ export function fireRiskOf(cell: CellState): number {
  * exposure while NORMAL) rather than a separate model. populationRisk and
  * infrastructureRisk are fireRisk gated by what's actually at stake on
  * that cell: a Scenario-marked vulnerable area for population, URBAN
- * terrain for infrastructure. v1 is purely reactive — a vulnerable cell
- * shows no risk until the fire threat is literally on it, no
- * distance-to-fire anticipation yet.
+ * terrain for infrastructure. An evacuated cell (a POLICE deployment)
+ * drops to zero populationRisk regardless of fireRisk — nobody's there to
+ * be at risk — even though infrastructureRisk is unaffected. v1 is purely
+ * reactive — a vulnerable cell shows no risk until the fire threat is
+ * literally on it, no distance-to-fire anticipation yet.
  */
 export function calculateRisk(state: SimulationState): RiskState {
   return state.cells.map((cell): CellRisk => {
@@ -24,7 +26,7 @@ export function calculateRisk(state: SimulationState): RiskState {
     return {
       position: cell.position,
       fireRisk,
-      populationRisk: cell.vulnerableAreaId !== null ? fireRisk : 0,
+      populationRisk: cell.vulnerableAreaId !== null && !cell.evacuated ? fireRisk : 0,
       infrastructureRisk: cell.terrainType === "URBAN" ? fireRisk : 0,
     };
   });

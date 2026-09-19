@@ -32,6 +32,7 @@ describe("determinism", () => {
           type: "BRIGADE",
           startPosition: { x: 0, y: 0 },
           effectiveness: 0.5,
+          arrivalMinutes: 5,
         },
       ],
       initialEnvironment: { temperature: 32, humidity: 0.15, wind: { speed: 30, direction: 200 } },

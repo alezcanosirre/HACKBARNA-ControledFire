@@ -69,6 +69,21 @@ cells still `NORMAL` at completion become `PROTECTED`. So a `step()` call
 with a long firebreak can, on its own, trigger several propagation ticks —
 same as a long `WAIT`.
 
+`DEPLOY_RESOURCE` works the same way: each resource has its own
+`arrivalMinutes` (ground units are fast, a helicopter is slower but much
+more effective — a real speed-vs-power tradeoff), the fire propagates
+during that time, and the effect is applied using the state **as it
+exists on arrival**, not at dispatch — a slow resource can show up to find
+its target already burned out or put out by someone else.
+
+**Known limitation: dispatching several resources in the same `step()`
+call stacks their arrival times sequentially, not in parallel.** Resource
+B's travel time only starts counting once resource A's has fully resolved
+— there's no scheduling queue that lets independent dispatches overlap.
+For now, send one `DEPLOY_RESOURCE` per `step()` call if you want
+realistic pacing; `api/src/scenario/collserola.ts` is tuned assuming
+exactly that usage pattern.
+
 ## Reading the result
 
 `SimulationState.cells` is the single source of truth for the map: each
@@ -115,9 +130,14 @@ inside `api/`) covering all of it plus a dedicated determinism check and a
 balance-tested example scenario (`api/src/scenario/collserola.ts`).
 
 Known gaps, not bugs:
-- `POLICE`/`DRONE` resources have no mechanic of their own yet — they only
-  do whatever `DEPLOY_RESOURCE`'s generic fire-intensity-reduction effect
-  does, so give them `effectiveness: 0` in a Scenario until that lands.
+- `POLICE` evacuates its target cell (`evacuated: true` — drops
+  `populationRisk` to 0 there regardless of `fireRisk`) and `DRONE` only
+  logs a recon-summary event with no state change (there's no hidden-
+  information/fog-of-war model in this Engine, so there's nothing to
+  actually "reveal" yet). Neither fights fire, so `effectiveness` is
+  unused for them.
+- Dispatching multiple resources in one `step()` call stacks arrival
+  times sequentially — see "Driving time forward" above.
 - `RESOURCES_EXHAUSTED` in `calculateOutcome` can never actually trigger:
   nothing puts a resource into `EXHAUSTED` (no uses-limit/durability
   mechanic exists).

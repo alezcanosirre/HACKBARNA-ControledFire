@@ -38,6 +38,7 @@ export function createInitialState(scenario: Scenario): SimulationState {
       intensity: isIgnition ? scenario.initialFire.initialIntensity : 0,
       exposure: 0,
       vulnerableAreaId: vulnerableAreaByKey.get(positionKey(terrainCell.position)) ?? null,
+      evacuated: false,
     };
   });
 
@@ -53,6 +54,7 @@ export function createInitialState(scenario: Scenario): SimulationState {
     status: "AVAILABLE",
     busyUntil: null,
     effectiveness: resource.effectiveness,
+    arrivalMinutes: resource.arrivalMinutes,
   }));
 
   const state: SimulationState = {

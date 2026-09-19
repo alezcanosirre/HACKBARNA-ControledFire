@@ -49,7 +49,7 @@ describe("createInitialState", () => {
     expect(elsewhere.vulnerableAreaId).toBeNull();
   });
 
-  it("copies resources with AVAILABLE status and their effectiveness", () => {
+  it("copies resources with AVAILABLE status, effectiveness and arrivalMinutes", () => {
     const scenario = buildScenario({
       initialResources: [
         {
@@ -58,6 +58,7 @@ describe("createInitialState", () => {
           type: "BRIGADE",
           startPosition: { x: 0, y: 0 },
           effectiveness: 0.7,
+          arrivalMinutes: 5,
         },
       ],
     });
@@ -70,6 +71,7 @@ describe("createInitialState", () => {
         status: "AVAILABLE",
         busyUntil: null,
         effectiveness: 0.7,
+        arrivalMinutes: 5,
       },
     ]);
   });

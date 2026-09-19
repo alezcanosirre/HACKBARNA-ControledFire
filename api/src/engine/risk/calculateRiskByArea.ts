@@ -21,6 +21,7 @@ export function calculateRiskByArea(state: SimulationState): RiskByArea {
     if (cell.vulnerableAreaId === null) continue;
 
     const fireRisk = fireRiskOf(cell);
+    const populationRisk = cell.evacuated ? 0 : fireRisk;
     const infrastructureRisk = cell.terrainType === "URBAN" ? fireRisk : 0;
     const current = byArea.get(cell.vulnerableAreaId) ?? {
       fireRisk: 0,
@@ -30,7 +31,7 @@ export function calculateRiskByArea(state: SimulationState): RiskByArea {
 
     byArea.set(cell.vulnerableAreaId, {
       fireRisk: Math.max(current.fireRisk, fireRisk),
-      populationRisk: Math.max(current.populationRisk, fireRisk),
+      populationRisk: Math.max(current.populationRisk, populationRisk),
       infrastructureRisk: Math.max(current.infrastructureRisk, infrastructureRisk),
     });
   }
