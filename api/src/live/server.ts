@@ -23,7 +23,7 @@ async function pollOnce(): Promise<void> {
     cache = { state, lastError: null };
     console.log(
       `[live] ${state.hotspots.length} detección(es), ${state.activeCellIds.length} celda(s) ardiendo, ` +
-        `${state.containedCellIds.length} contenida(s), ${state.riskCellIds.length} en riesgo`,
+        `${state.riskCellIds.length} en riesgo`,
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
@@ -35,7 +35,6 @@ async function pollOnce(): Promise<void> {
       : {
         state: {
           activeCellIds: [],
-          containedCellIds: [],
           riskCellIds: [],
           hotspots: [],
           fetchedAt: Date.now(),

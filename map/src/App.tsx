@@ -95,9 +95,8 @@ export default function App() {
    */
   const liveStatus = useMemo(() => {
     const active = quadkeysForH3Cells(live.data?.activeCellIds ?? []);
-    const contained = quadkeysForH3Cells(live.data?.containedCellIds ?? []);
     const risk = quadkeysForH3Cells(live.data?.riskCellIds ?? []);
-    return statusFromLiveCells(active, contained, risk);
+    return statusFromLiveCells(active, risk);
   }, [live.data]);
 
   // Only the cells that have something to say. The full mesh is never generated at this
