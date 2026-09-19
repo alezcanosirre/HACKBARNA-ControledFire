@@ -1,53 +1,53 @@
 import type { AIAnalysis } from './types';
 
 /**
- * Respuesta de la IA para cada foco del escenario (spec.md §8). El de Collserola está
- * escrito y revisado a mano: es el texto que van a leer los jueces, y si la llamada al
- * modelo falla en directo, el hook cae aquí sin que se note.
+ * The AI's response for each fire in the scenario (spec.md §8). The Collserola one is
+ * written and reviewed by hand: it is the text the judges will read, and if the model
+ * call fails live the hook falls back here without anyone noticing.
  *
- * `action_id` referencia el catálogo. Cuando se conecte el motor, cada uno de estos ids
- * tiene que resolver contra la unión cerrada de `Action` (WAIT, DEPLOY_RESOURCE,
- * CREATE_FIREBREAK): la IA elige y ordena dentro del catálogo, no inventa acciones.
+ * `action_id` references the catalogue. When the engine is wired in, each of these ids
+ * has to resolve against the closed `Action` union (WAIT, DEPLOY_RESOURCE,
+ * CREATE_FIREBREAK): the AI picks and orders within the catalogue, it does not invent
+ * actions.
  */
 const ANALYSES: AIAnalysis[] = [
   {
     target_id: 'fire-1',
     summary:
-      'Fuego en interfaz urbano-forestal con viento de poniente de 27 km/h empujando ' +
-      'la cabeza hacia el nordeste. El combustible está alto y la humedad relativa ha ' +
-      'caído al 18%. Hay población a sotavento a menos de dos kilómetros.',
+      'Fire in the wildland-urban interface with a 27 km/h westerly pushing the head ' +
+      'north-east. Fuel load is high and relative humidity has dropped to 18%. There ' +
+      'are people downwind less than two kilometres away.',
     priority_rationale:
-      'Primero lo que no se puede mover y está en la trayectoria del viento; después ' +
-      'la cabeza del frente; el corte de la vía va detrás porque hoy solo protege ' +
-      'material.',
+      'First what cannot move and sits in the path of the wind; then the head of the ' +
+      'front; closing the road comes last because today it only protects property.',
     actions: [
       {
         action_id: 'EVACUATE_SCHOOL',
-        label: 'Evacuar el CEIP Sant Jordi',
+        label: 'Evacuate CEIP Sant Jordi',
         rank: 1,
         urgency: 'immediate',
-        why: '420 personas a 1,8 km y a sotavento. Con 27 km/h el frente cubre esa distancia en unos 25 minutos; una evacuación escolar necesita más.',
-        resources: ['Policia Local', 'Autocars'],
+        why: '420 people 1.8 km away and downwind. At 27 km/h the front covers that distance in about 25 minutes; evacuating a school takes longer.',
+        resources: ['Local police', 'Coaches'],
         eta_min: 25,
         status: 'proposed',
       },
       {
         action_id: 'DEPLOY_RESOURCE:helicopter',
-        label: 'Helicóptero a la cabeza del frente',
+        label: 'Helicopter to the head of the front',
         rank: 2,
         urgency: 'immediate',
-        why: 'Atacar el flanco nordeste, que es por donde avanza. Base de Sabadell a 25 minutos de vuelo.',
-        resources: ['Helicòpter bombarder'],
+        why: 'Attack the north-east flank, which is where it is advancing. Sabadell base is 25 minutes of flight away.',
+        resources: ['Water-bombing helicopter'],
         eta_min: 25,
         status: 'proposed',
       },
       {
         action_id: 'CREATE_FIREBREAK',
-        label: 'Cortar la BV-1415 y abrir cortafuegos',
+        label: 'Close the BV-1415 and cut a firebreak',
         rank: 3,
         urgency: 'soon',
-        why: 'La vía queda a 0,9 km en el flanco sur y sirve de línea de defensa. Cortarla evita tráfico dentro de la zona de trabajo.',
-        resources: ['Mossos', 'Dotació terrestre'],
+        why: 'The road runs 0.9 km away on the southern flank and works as a defence line. Closing it keeps traffic out of the working area.',
+        resources: ['Mossos', 'Ground crew'],
         eta_min: 40,
         status: 'proposed',
       },
@@ -58,28 +58,28 @@ const ANALYSES: AIAnalysis[] = [
   {
     target_id: 'fire-2',
     summary:
-      'Bosque puro en pendiente del 21% y carga de combustible extrema. El viento es ' +
-      'flojo pero la pendiente empuja hacia arriba por sí sola.',
+      'Pure forest on a 21% slope with an extreme fuel load. The wind is light but the ' +
+      'slope pushes the fire uphill on its own.',
     priority_rationale:
-      'Sin población inmediata, la prioridad es la línea eléctrica y contener antes de ' +
-      'que el fuego coja la vaguada.',
+      'With no population immediately at risk, the priority is the power line and ' +
+      'containing the fire before it reaches the gully.',
     actions: [
       {
         action_id: 'DEPLOY_RESOURCE:ground',
-        label: 'Dotación terrestre al flanco este',
+        label: 'Ground crew to the eastern flank',
         rank: 1,
         urgency: 'immediate',
-        why: 'La línea de 220 kV está a 2,2 km y a sotavento. Perderla deja sin suministro a tres municipios.',
-        resources: ['2 dotacions GRAF'],
+        why: 'The 220 kV line is 2.2 km away and downwind. Losing it cuts supply to three municipalities.',
+        resources: ['2 GRAF crews'],
         eta_min: 35,
         status: 'proposed',
       },
       {
         action_id: 'CREATE_FIREBREAK',
-        label: 'Cortafuegos en la pista forestal alta',
+        label: 'Firebreak along the upper forest track',
         rank: 2,
         urgency: 'soon',
-        why: 'Es la única línea de defensa por encima del foco antes de la cresta.',
+        why: 'It is the only defence line above the fire before the ridge.',
         eta_min: 60,
         status: 'proposed',
       },
@@ -90,27 +90,27 @@ const ANALYSES: AIAnalysis[] = [
   {
     target_id: 'fire-3',
     summary:
-      'Matorral en el Garraf con viento de tramuntana de 19 km/h. Avanza hacia el sur, ' +
-      'hacia la urbanización de Can Lloses.',
+      'Scrub in the Garraf with a 19 km/h northerly. It is advancing south, towards the ' +
+      'Can Lloses estate.',
     priority_rationale:
-      'La urbanización está a sotavento y en matorral el frente corre. Avisar antes de ' +
-      'que haya que evacuar.',
+      'The estate is downwind and fire runs fast through scrub. Warn them before an ' +
+      'evacuation becomes necessary.',
     actions: [
       {
         action_id: 'DEPLOY_RESOURCE:ground',
-        label: 'Preposicionar dotación en Can Lloses',
+        label: 'Pre-position a crew at Can Lloses',
         rank: 1,
         urgency: 'immediate',
-        why: '310 personas a 2,7 km y a sotavento. Llegar antes que el fuego cuesta menos que evacuar después.',
+        why: '310 people 2.7 km away and downwind. Getting there before the fire costs less than evacuating afterwards.',
         eta_min: 20,
         status: 'proposed',
       },
       {
         action_id: 'DEPLOY_RESOURCE:air',
-        label: 'Avión de vigilancia y ataque',
+        label: 'Surveillance and attack aircraft',
         rank: 2,
         urgency: 'soon',
-        why: 'El matorral del Garraf arde rápido y plano: un ataque temprano lo cierra.',
+        why: 'Garraf scrub burns fast and flat: an early attack closes it down.',
         eta_min: 30,
         status: 'proposed',
       },
@@ -121,26 +121,26 @@ const ANALYSES: AIAnalysis[] = [
   {
     target_id: 'fire-4',
     summary:
-      'Conato en zona de cultivo con carga moderada, pendiente casi nula y viento flojo. ' +
-      'No hay población ni infraestructura crítica cerca.',
+      'Flare-up on cropland with a moderate fuel load, almost no slope and light wind. ' +
+      'There is no population or critical infrastructure nearby.',
     priority_rationale:
-      'Con este combustible y sin viento el fuego no gana terreno. Vigilar cuesta menos ' +
-      'que desplazar medios que hacen falta en Collserola.',
+      'With this fuel and no wind the fire gains no ground. Watching costs less than ' +
+      'moving resources that are needed in Collserola.',
     actions: [
       {
         action_id: 'WAIT',
-        label: 'Mantener en vigilancia',
+        label: 'Keep under observation',
         rank: 1,
         urgency: 'monitor',
-        why: 'Cultivo segado, 3° de pendiente y 9 km/h de viento. Los medios rinden más en los focos activos.',
+        why: 'Harvested cropland, 3° of slope and 9 km/h of wind. The resources are worth more on the active fires.',
         status: 'proposed',
       },
       {
         action_id: 'DEPLOY_RESOURCE:ground',
-        label: 'Dotación de guardia desde el parque más próximo',
+        label: 'Standby crew from the nearest station',
         rank: 2,
         urgency: 'soon',
-        why: 'Una sola dotación cierra un conato de 1,6 ha si cambia el viento.',
+        why: 'A single crew closes a 1.6 ha flare-up if the wind turns.',
         eta_min: 18,
         status: 'proposed',
       },
@@ -151,26 +151,26 @@ const ANALYSES: AIAnalysis[] = [
   {
     target_id: 'fire-5',
     summary:
-      'Conato de 0,7 ha en rastrojo, con Sentmenat a 3,4 km y a barlovento. Detección ' +
-      'manual, confianza baja: conviene confirmarla sobre el terreno.',
+      'A 0.7 ha flare-up in stubble, with Sentmenat 3.4 km away and upwind. Manual ' +
+      'detection, low confidence: worth confirming on the ground.',
     priority_rationale:
-      'Antes de mover nada grande, confirmar que existe y con qué tamaño.',
+      'Before moving anything large, confirm that it exists and how big it is.',
     actions: [
       {
         action_id: 'DEPLOY_RESOURCE:drone',
-        label: 'Dron de reconocimiento',
+        label: 'Reconnaissance drone',
         rank: 1,
         urgency: 'immediate',
-        why: 'La detección es manual y la confianza del 58%. Diez minutos de dron evitan movilizar una dotación por un falso positivo.',
+        why: 'The detection is manual and confidence is 58%. Ten minutes of drone avoid mobilising a crew for a false positive.',
         eta_min: 10,
         status: 'proposed',
       },
       {
         action_id: 'WAIT',
-        label: 'Mantener en vigilancia',
+        label: 'Keep under observation',
         rank: 2,
         urgency: 'monitor',
-        why: 'El núcleo está a barlovento y a 3,4 km. Sin cambio de viento no hay amenaza a población.',
+        why: 'The village is upwind and 3.4 km away. Without a wind shift there is no threat to population.',
         status: 'proposed',
       },
     ],
@@ -181,7 +181,7 @@ const ANALYSES: AIAnalysis[] = [
 
 const BY_TARGET = new Map(ANALYSES.map((a) => [a.target_id, a]));
 
-/** Análisis de la IA para un objetivo, o null si todavía no hay ninguno mockeado. */
+/** The AI's analysis for a target, or null if none is mocked yet. */
 export function analysisFor(targetId: string | null): AIAnalysis | null {
   return targetId ? (BY_TARGET.get(targetId) ?? null) : null;
 }

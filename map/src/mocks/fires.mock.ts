@@ -1,21 +1,20 @@
 import type { Fire } from './types';
 
 /**
- * Escenario de demo de spec.md §8. Cinco focos en la Regió Metropolitana.
+ * The demo scenario of spec.md §8. Five fires across the Regió Metropolitana.
  *
- * Los `id` coinciden con los que genera la agrupación del mapa (src/map/grid.ts
- * numera los focos por tamaño, mayor primero), así que pulsar una celda trae su
- * detalle sin tabla de traducción. El día que el backend mande incendios de verdad,
- * este fichero se borra entero.
+ * The `id`s match the ones the map's grouping produces (src/map/grid.ts numbers fires
+ * by size, largest first), so clicking a cell brings up its detail with no translation
+ * table. The day the backend sends real fires, this file gets deleted whole.
  *
- * Los `cell_id` son quadkeys z15 del centroide (spec §4.1: nadie guarda geometría,
- * la geometría se deriva del identificador).
+ * The `cell_id`s are z15 quadkeys of the centroid (spec §4.1: nobody stores geometry,
+ * geometry is derived from the identifier).
  */
 export const FIRES_MOCK: Fire[] = [
   {
     id: 'fire-1',
     cell_id: '120222232113130',
-    place: 'Collserola nord',
+    place: 'Collserola North',
     centroid: [41.4186, 2.0899],
     detected_at: '2026-09-19T14:32:00+02:00',
     confidence: 0.92,
@@ -34,21 +33,21 @@ export const FIRES_MOCK: Fire[] = [
       },
       {
         type: 'settlement',
-        name: 'Nucli de Vallvidrera',
+        name: 'Vallvidrera village',
         distance_km: 3.1,
         population: 1250,
         downwind: false,
       },
       {
         type: 'care_home',
-        name: 'Residència Les Planes',
+        name: 'Les Planes care home',
         distance_km: 2.4,
         population: 86,
         downwind: true,
       },
       {
         type: 'infrastructure',
-        name: 'Carretera BV-1415',
+        name: 'BV-1415 road',
         distance_km: 0.9,
         downwind: false,
       },
@@ -57,7 +56,7 @@ export const FIRES_MOCK: Fire[] = [
   {
     id: 'fire-2',
     cell_id: '120222231033232',
-    place: 'Montseny — vessant sud',
+    place: 'Montseny — south slope',
     centroid: [41.7736, 2.4008],
     detected_at: '2026-09-19T13:05:00+02:00',
     confidence: 0.81,
@@ -74,7 +73,7 @@ export const FIRES_MOCK: Fire[] = [
         population: 40,
         downwind: true,
       },
-      { type: 'infrastructure', name: 'Línia elèctrica 220 kV', distance_km: 2.2, downwind: true },
+      { type: 'infrastructure', name: '220 kV power line', distance_km: 2.2, downwind: true },
     ],
   },
   {
@@ -92,7 +91,7 @@ export const FIRES_MOCK: Fire[] = [
     values_at_risk: [
       {
         type: 'settlement',
-        name: 'Urbanització Can Lloses',
+        name: 'Can Lloses estate',
         distance_km: 2.7,
         population: 310,
         downwind: true,
@@ -102,7 +101,7 @@ export const FIRES_MOCK: Fire[] = [
   {
     id: 'fire-4',
     cell_id: '120222230231011',
-    place: 'Sant Llorenç — interior',
+    place: 'Sant Llorenç — inland',
     centroid: [41.64, 1.71],
     detected_at: '2026-09-19T12:48:00+02:00',
     confidence: 0.63,
@@ -112,13 +111,13 @@ export const FIRES_MOCK: Fire[] = [
     weather: { temp_c: 26, humidity_pct: 34, wind_speed_kmh: 9, wind_dir_deg: 225 },
     zone: { land_cover: 'crop', slope_deg: 3, fuel_load: 'moderate' },
     values_at_risk: [
-      { type: 'infrastructure', name: 'Camí de la Serra', distance_km: 1.2, downwind: false },
+      { type: 'infrastructure', name: 'Camí de la Serra track', distance_km: 1.2, downwind: false },
     ],
   },
   {
     id: 'fire-5',
     cell_id: '120222231232320',
-    place: 'Vallès — conat de Sentmenat',
+    place: 'Vallès — Sentmenat flare-up',
     centroid: [41.52, 2.34],
     detected_at: '2026-09-19T15:40:00+02:00',
     confidence: 0.58,
@@ -141,7 +140,7 @@ export const FIRES_MOCK: Fire[] = [
 
 const BY_ID = new Map(FIRES_MOCK.map((f) => [f.id, f]));
 
-/** Detalle del foco seleccionado, o null si el mapa manda un id que no está mockeado. */
+/** Detail for the selected fire, or null if the map sends an id that is not mocked. */
 export function fireById(id: string | null): Fire | null {
   return id ? (BY_ID.get(id) ?? null) : null;
 }

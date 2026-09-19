@@ -5,20 +5,20 @@ import { int, time } from './format';
 import { SectionLabel, Surface } from './Surface';
 
 const URGENCY: Record<RankedAction['urgency'], string> = {
-  immediate: 'inmediata',
-  soon: 'pronto',
-  monitor: 'vigilar',
+  immediate: 'immediate',
+  soon: 'soon',
+  monitor: 'monitor',
 };
 
 /**
- * El panel de acciones, que es el corazón del producto (spec.md §5.4).
+ * The actions panel, which is the heart of the product (spec.md §5.4).
  *
- * Tres reglas que no se negocian y que están implementadas literalmente aquí:
- *  - la numeración es prioridad real, no viñeta;
- *  - el porqué está siempre visible, nunca plegado: una acción sin justificación es
- *    una orden ciega y el operador no la sigue;
- *  - Aceptar y Descartar están siempre a la vista, nunca tras un menú. La decisión
- *    humana es el argumento del proyecto.
+ * Three rules that are not up for negotiation, implemented literally here:
+ *  - the numbering is real priority, not a bullet;
+ *  - the reason is always visible, never folded away: an action without justification
+ *    is a blind order and the operator will not follow it;
+ *  - Accept and Dismiss are always in sight, never behind a menu. The human decision
+ *    is the argument of the whole project.
  */
 export function ActionsCard({
   analysis,
@@ -32,16 +32,16 @@ export function ActionsCard({
   const actions = [...analysis.actions].sort((a, b) => a.rank - b.rank);
 
   return (
-    <Surface padded={false} className="divide-y divide-night-700">
+    <Surface padded={false} className="divide-y divide-line">
       <header className="flex items-baseline justify-between gap-4 p-4">
-        <SectionLabel>Acciones</SectionLabel>
-        <span className="text-meta text-muted">propuesta de la IA</span>
+        <SectionLabel>Actions</SectionLabel>
+        <span className="text-meta text-muted">AI proposal</span>
       </header>
 
-      {/* El análisis: qué tiene delante el operador y por qué este orden. */}
+      {/* The analysis: what the operator is looking at and why this order. */}
       <p className="p-4 text-body text-dim">{analysis.summary}</p>
 
-      <ul className="divide-y divide-night-700">
+      <ul className="divide-y divide-line">
         {actions.map((action) => {
           const decision = decisions[decisionKey(analysis.target_id, action.action_id)];
           return (
@@ -61,8 +61,8 @@ export function ActionsCard({
                 <div className="mt-3">
                   {decision ? (
                     /*
-                      El verbo conserva la palabra: Aceptar → Aceptada. Y queda la hora
-                      al lado, porque esto es un registro de decisiones.
+                      The verb keeps its word: Accept → Accepted. And the time stays
+                      beside it, because this is a decision log.
                     */
                     <p
                       className={`flex items-center gap-2 text-label font-medium ${
@@ -70,7 +70,7 @@ export function ActionsCard({
                       }`}
                     >
                       {decision.status === 'accepted' ? <CheckIcon /> : <CrossIcon />}
-                      {decision.status === 'accepted' ? 'Aceptada' : 'Descartada'}
+                      {decision.status === 'accepted' ? 'Accepted' : 'Dismissed'}
                       <span className="text-meta font-normal text-muted">
                         {time(decision.at)}
                       </span>
@@ -83,15 +83,15 @@ export function ActionsCard({
                         className="flex items-center gap-2 rounded-sm bg-primary px-4 py-3 text-label font-medium text-on-primary transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
                       >
                         <CheckIcon />
-                        Aceptar
+                        Accept
                       </button>
                       <button
                         type="button"
                         onClick={() => onDecide(action.action_id, 'rejected')}
-                        className="flex items-center gap-2 rounded-sm border border-night-700 px-4 py-3 text-label font-medium text-muted transition-colors hover:bg-night-700/50 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
+                        className="flex items-center gap-2 rounded-sm border border-line px-4 py-3 text-label font-medium text-muted transition-colors hover:bg-surface-2/60 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
                       >
                         <CrossIcon />
-                        Descartar
+                        Dismiss
                       </button>
                     </div>
                   )}
@@ -102,7 +102,7 @@ export function ActionsCard({
         })}
       </ul>
 
-      {/* Trazabilidad: qué modelo lo ha escrito y cuándo. */}
+      {/* Traceability: which model wrote this, and when. */}
       <footer className="p-4 text-meta text-muted">
         {analysis.model} · {time(analysis.generated_at)}
       </footer>

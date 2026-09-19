@@ -1,7 +1,7 @@
 /**
- * Iconos monocromos, siempre en `currentColor`. Nada de emoji: 🔥 es naranja y los
- * cálidos son dato del mapa, no interfaz (DESIGN.md §1, UX.md §0 regla 3). Las
- * pizarras los dibujan como emoji porque son bocetos.
+ * Monochrome icons, always in `currentColor`. No emoji: 🔥 is orange, and warm colours
+ * are map data, not interface (DESIGN.md §1, UX.md §0 rule 3). The whiteboards draw
+ * them as emoji because they are sketches.
  */
 
 type Props = { className?: string };
@@ -44,7 +44,7 @@ export function PlayIcon({ className = base }: Props) {
   );
 }
 
-/** Flecha de volver. También sirve de chevron: se gira con una clase. */
+/** Back arrow. It doubles as a chevron: rotate it with a class. */
 export function ArrowLeftIcon({ className = base }: Props) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}>
@@ -53,7 +53,7 @@ export function ArrowLeftIcon({ className = base }: Props) {
   );
 }
 
-/** Contraer el menú: la barra y la flecha que entra en ella. */
+/** Collapse the menu: the bar and the arrow going into it. */
 export function CollapseIcon({ className = base }: Props) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={className}>
@@ -88,7 +88,7 @@ export function CrossIcon({ className = 'h-4 w-4 shrink-0' }: Props) {
   );
 }
 
-/** Marca de lo que está a sotavento. Triángulo de aviso, sin relleno y sin rojo. */
+/** Mark for whatever sits downwind. Warning triangle, unfilled and never red. */
 export function DownwindIcon({ className = 'h-4 w-4 shrink-0' }: Props) {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>

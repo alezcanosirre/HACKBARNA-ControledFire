@@ -11,15 +11,19 @@ lista de acciones, leyenda. El mapa y sus colores de dato se rigen por `spec.md`
 ## 0. Qué se ha adaptado y por qué
 
 Los tokens vienen de una herramienta de codificación en modo claro. Esto es una consola
-de sala de control para emergencias. Tres cosas no se pueden importar tal cual, y una
-cuarta estaba mal calculada en origen.
+de sala de control para emergencias montada sobre un mapa nocturno. Tres cosas hay que
+ajustar, y una cuarta estaba mal calculada en origen.
 
-**1. Modo claro → oscuro.** No es preferencia estética. El basemap es
-`dark-matter` (spec §4.5) y las celdas de fuego son luminosas sobre él. Una UI clara
-alrededor de un mapa oscuro obliga al ojo a readaptarse en cada salto entre panel y mapa,
-que es exactamente el movimiento que hace un operador cada treinta segundos. Se conserva
-**toda** la filosofía del sistema —paleta desaturada, sin sombras, sin acentos de color—
-sobre el fondo `#0C1220` del spec.
+**1. Interfaz clara sobre mapa oscuro.** El basemap es `dark-matter` (spec §4.5) y el
+fondo de la aplicación sigue siendo `#0C1220`. Lo que va encima, no: la capa flotante es
+clara, y esa es la manera de que se distinga del terreno en lugar de camuflarse con él.
+Una tarjeta oscura sobre un mapa oscuro necesita el borde para existir; una clara se
+despega sola.
+
+El coste está contado y se acepta: el ojo se readapta en cada salto entre panel y mapa.
+A cambio, en la demo no hay un solo momento de duda sobre dónde acaba el dato y empieza
+la interfaz. Se conserva **toda** la filosofía del sistema: paleta desaturada, sin
+sombras, sin acentos de color y sin un solo cálido fuera del mapa.
 
 **2. El error de contraste del documento original.** Afirma que blanco sobre
 `#8e8ea0` da ~8:1. Es **3,22:1**, el mismo valor que `#8e8ea0` sobre blanco, porque el
@@ -48,35 +52,41 @@ que resistir porque no hay con qué.
 
 ```css
 :root {
-  /* Superficies */
-  --night-900: #0C1220;   /* fondo de la aplicación */
-  --night-800: #131C2E;   /* paneles, tarjetas */
-  --night-700: #1D2840;   /* bordes y separadores, 1px */
+  /* Superficies — la interfaz es clara y flota sobre el mapa */
+  --surface:    #F4F6FA;   /* tarjetas y menú */
+  --surface-2:  #DBE3EF;   /* item activo y hover */
+  --line:       #C8D2E0;   /* bordes y separadores, 1px */
+
+  /* El fondo de la aplicación es el del mapa, y sigue siendo de noche */
+  --night-900:  #0C1220;
 
   /* Texto */
-  --text:       #E4EBF5;  /* principal        15,58:1 sobre night-900  AAA */
-  --text-muted: #8e8ea0;  /* secundario        5,81:1 sobre night-900  AA  */
-  --text-dim:   #8FA3BF;  /* terciario         7,27:1 sobre night-900  AAA */
+  --text:       #16202F;  /* principal        15,14:1 sobre surface  AAA */
+  --text-dim:   #3D4859;  /* terciario         8,55:1 sobre surface  AAA */
+  --text-muted: #5A6478;  /* secundario        5,50:1 sobre surface  AA  */
 
   /* Interacción */
-  --primary:    #8e8ea0;  /* el gris-púrpura del sistema original */
-  --on-primary: #0C1220;  /* NO blanco. Ver nota abajo */
+  --primary:    #16202F;  /* oscuro sobre claro: el botón se invierte con el sistema */
+  --on-primary: #F4F6FA;  /* 15,14:1 sobre primary  AAA */
 
   /* Único estado con color */
-  --signal:     #4ADE80;  /* acción aceptada  10,73:1 sobre night-900  AAA */
+  --signal:     #0F5C2C;  /* acción aceptada   7,50:1 sobre surface  AAA */
 }
 ```
 
 Ratios calculados, no estimados.
 
-**`--on-primary` es oscuro, no blanco.** Blanco sobre `#8e8ea0` da 3,22:1 y falla AA.
-El fondo nocturno sobre ese mismo gris da contraste suficiente y además mantiene el botón
-dentro de la gama fría. Es el único cambio de token que rompe con el original, y es el
-que evita que toda la botonera sea inaccesible.
+**El primario se invierte con el sistema.** En la versión oscura era gris claro con texto
+oscuro; ahora es oscuro con texto claro. Es el mismo contraste dado la vuelta, y sigue
+siendo el elemento más pesado de la tarjeta, que es lo que tiene que ser el botón de
+*Aceptar*.
 
-**`#8e8ea0` funciona, pero sobre oscuro.** El color del sistema original no es el
-problema; el fondo blanco lo era. Sobre `#0C1220` pasa AA con holgura (5,81:1) y hace
-exactamente el papel para el que se eligió: texto secundario que no compite.
+**El verde de `--signal` baja a `#0F5C2C`.** El `#4ADE80` de la versión oscura da 1,61:1
+sobre una superficie clara y sería ilegible. Este pasa AAA y sigue leyéndose como verde.
+
+**`--line` contra `--surface` da 1,41:1 y eso está bien.** Un separador no es texto: no
+tiene que pasar AA, tiene que dividir sin gritar. Es incluso algo más visible que el
+1,16:1 que daba el par oscuro equivalente.
 
 ### La regla que no se rompe
 
@@ -86,6 +96,11 @@ pantalla, arde en el mundo. Los errores de formulario se marcan con texto y con 
 `--text` a 2px, no con rojo.
 
 `--signal` (verde) es la única excepción, y solo para confirmar una acción ya aceptada.
+
+**Un corolario nuevo al invertir la interfaz:** las muestras de color de la leyenda se
+pintan sobre `--night-900`, no sobre la tarjeta. Los rellenos de celda llevan alfa; sobre
+una superficie clara el mismo token daría otro color y la clave dejaría de explicar lo
+que se ve en el mapa.
 
 ---
 
@@ -145,11 +160,10 @@ etiqueta/valor separados 8px se leen como dos cosas distintas en vez de como una
 ```
 
 Un solo radio, el del sistema original. Y **cero sombras**. La separación se consigue
-con línea de 1px en `--night-700` o con cambio de fondo a `--night-800`. Una sala de
-control no tiene tarjetas flotantes.
+con línea de 1px en `--line` o con cambio de fondo a `--surface-2`.
 
-La única excepción es el panel lateral, que sí flota sobre el mapa y necesita despegarse:
-borde izquierdo de 1px, sin sombra difusa.
+Con la interfaz en claro, el despegue del panel sobre el mapa ya no depende del borde: lo
+hace el propio salto de luminancia. El borde se queda para delimitar, no para separar.
 
 ---
 
@@ -201,7 +215,7 @@ Para que no haya dudas en la pieza que más importa (spec §5.4):
 - Título de la acción en `body` peso 500, en `--text`.
 - El *por qué* en `body` peso 400, en `--text-dim`. Siempre visible, nunca plegado.
 - **Aceptar**: fondo `--primary`, texto `--on-primary`, radio 5px.
-- **Descartar**: fondo transparente, borde 1px `--night-700`, texto `--text-muted`.
+- **Descartar**: fondo transparente, borde 1px `--line`, texto `--text-muted`.
 - Aceptada: fondo transparente, texto `--signal`, con la hora en `meta` al lado.
   El verbo conserva la palabra: *Aceptar* → *Aceptada*.
 - Separación entre acciones: línea de 1px, no espacio en blanco. Densidad.
@@ -210,6 +224,13 @@ Para que no haya dudas en la pieza que más importa (spec §5.4):
 
 ## Registro
 
+- 19 sep 2026 — **La interfaz pasa a clara.** Decisión suya: la capa flotante tiene que
+  distinguirse del mapa oscuro, no fundirse con él. Se invierte §1 entero. El primario
+  pasa de gris claro con texto oscuro a oscuro con texto claro; `--signal` baja de
+  `#4ADE80` a `#0F5C2C` porque el verde claro no se lee sobre superficie clara; las
+  muestras de la leyenda se pasan a fondo `--night-900` para que sigan explicando el
+  mapa. El fondo de la aplicación y todos los colores de dato no se tocan. Recalculados
+  los ratios.
 - 19 sep 2026 — Creado desde los tokens de openai.com. Adaptado a modo oscuro por
   compatibilidad con el basemap. Corregido el ratio de `on-primary` (el original decía
   8:1, es 3,22:1 y falla AA). Invertidos `text` y `text-muted`, que venían al revés.

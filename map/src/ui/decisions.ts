@@ -1,12 +1,12 @@
 /**
- * El registro de decisiones del operador (spec.md §5.4): al aceptar o descartar, la
- * acción cambia de estado y queda con la hora. Es exactamente lo que un coordinador
- * necesita después, así que se guarda aunque todavía no haya backend que lo reciba.
+ * The operator's decision log (spec.md §5.4): accepting or dismissing changes the
+ * action's state and stamps it with the time. That log is exactly what a coordinator
+ * needs afterwards, so it is kept even though no backend receives it yet.
  */
 export interface Decision {
   status: 'accepted' | 'rejected';
   at: string; // ISO
 }
 
-/** Una acción pertenece a un análisis, no al sistema: la clave lleva los dos ids. */
+/** An action belongs to an analysis, not to the system: the key carries both ids. */
 export const decisionKey = (targetId: string, actionId: string) => `${targetId}:${actionId}`;

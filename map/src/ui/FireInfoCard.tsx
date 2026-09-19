@@ -6,12 +6,12 @@ import { FUEL_LOAD, LAND_COVER, VALUE_TYPE, int, num, time } from './format';
 import { SectionLabel, Surface } from './Surface';
 
 /**
- * Flecha que apunta a donde va el aire, no a de dónde viene. `wind_dir_deg` es
- * meteorológico (dirección de PROCEDENCIA), así que se le suman 180°. La flecha en
- * reposo apunta al norte.
+ * An arrow pointing where the air is going, not where it comes from. `wind_dir_deg` is
+ * meteorological (the direction it blows FROM), so 180° are added. At rest the arrow
+ * points north.
  *
- * UX.md §5: el viento se dibuja como flecha girada, nunca como «210°». Un operador lee
- * una flecha de un vistazo; un acimut hay que traducirlo.
+ * UX.md §5: wind is drawn as a rotated arrow, never as "210°". An operator reads an
+ * arrow at a glance; a bearing has to be translated first.
  */
 function Arrow({ deg, label }: { deg: number; label: string }) {
   return (
@@ -39,62 +39,62 @@ function Row({ children }: { children: ReactNode }) {
 }
 
 /**
- * Tarjeta de información de UX.md §5, en el orden de spec.md §5.2: quién y cuándo,
- * el número grande, las condiciones y lo que hay en riesgo. Nunca el cell_id en crudo.
+ * The information card of UX.md §5, in the order of spec.md §5.2: who and when, the
+ * big number, the conditions and what is at risk. Never the raw cell_id.
  */
 export function FireInfoCard({ fire }: { fire: Fire }) {
   const { weather, spread, zone } = fire;
 
-  // Lo de sotavento primero: es lo que decide la evacuación. A igualdad, lo más cerca.
+  // Downwind first: that is what decides an evacuation. Ties go to whatever is closest.
   const atRisk = [...fire.values_at_risk].sort(
     (a, b) => Number(b.downwind) - Number(a.downwind) || a.distance_km - b.distance_km,
   );
 
   return (
     <div className="flex flex-col gap-2">
-      <Surface padded={false} className="divide-y divide-night-700">
+      <Surface padded={false} className="divide-y divide-line">
         <header className="p-4">
           <h1 className="text-heading font-semibold text-text">{fire.place}</h1>
           <p className="mt-1 text-meta text-muted">
-            {time(fire.detected_at)} · {fire.source} · confianza{' '}
-            {Math.round(fire.confidence * 100)}%
+            {time(fire.detected_at)} · {fire.source} · {Math.round(fire.confidence * 100)}%{' '}
+            confidence
           </p>
         </header>
 
-        {/* El número por el que se abre el panel (DESIGN.md §2: display, solo aquí). */}
+        {/* The number the panel is opened for (DESIGN.md §2: display, only here). */}
         <div className="flex items-baseline gap-2 p-4">
           <span className="text-display text-text">{num(fire.area_ha)}</span>
-          <span className="text-meta text-muted">ha afectadas</span>
+          <span className="text-meta text-muted">ha affected</span>
         </div>
 
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-4">
           <Row>
-            <Arrow deg={weather.wind_dir_deg + 180} label="Dirección del viento" />
+            <Arrow deg={weather.wind_dir_deg + 180} label="Wind direction" />
             <span className="text-text">{num(weather.wind_speed_kmh)} km/h</span>
           </Row>
           <Row>
-            <span className="text-muted">Temp.</span>
+            <span className="text-muted">Temp</span>
             <span className="text-text">{num(weather.temp_c)} °C</span>
           </Row>
           <Row>
-            <span className="text-muted">HR</span>
+            <span className="text-muted">RH</span>
             <span className="text-text">{int(weather.humidity_pct)} %</span>
           </Row>
           <Row>
-            <Arrow deg={spread.direction_deg} label="Dirección de propagación" />
+            <Arrow deg={spread.direction_deg} label="Spread direction" />
             <span className="text-text">{num(spread.speed_kmh)} km/h</span>
           </Row>
         </div>
 
         <section className="flex flex-col gap-3 p-4">
-          <SectionLabel>En riesgo</SectionLabel>
+          <SectionLabel>At risk</SectionLabel>
           <ul className="flex flex-col gap-2">
             {atRisk.map((v) => (
               <li key={v.name} className="flex items-start gap-2">
                 {/*
-                  Lo que está a sotavento lleva marca propia: el aviso y el nombre en
-                  --text en vez de --text-dim. Es lo que convierte «hay un colegio
-                  cerca» en «evacuar ese colegio ya» (spec §6.2, UX §5).
+                  Whatever sits downwind gets a mark of its own: the warning glyph and
+                  the name in --text instead of --text-dim. That is what turns "there is
+                  a school nearby" into "evacuate that school now" (spec §6.2, UX §5).
                 */}
                 <span className={`mt-0.5 ${v.downwind ? 'text-text' : 'text-transparent'}`}>
                   <DownwindIcon />
@@ -107,8 +107,8 @@ export function FireInfoCard({ fire }: { fire: Fire }) {
                   </span>
                   <span className="block text-meta text-muted">
                     {VALUE_TYPE[v.type]} · {num(v.distance_km)} km
-                    {v.population !== undefined && ` · ${int(v.population)} personas`}
-                    {v.downwind && ' · a sotavento'}
+                    {v.population !== undefined && ` · ${int(v.population)} people`}
+                    {v.downwind && ' · downwind'}
                   </span>
                 </span>
               </li>
@@ -117,16 +117,16 @@ export function FireInfoCard({ fire }: { fire: Fire }) {
         </section>
       </Surface>
 
-      {/* Las pastillas de zona, fuera de la tarjeta, como en la pizarra. */}
+      {/* The zone pills, outside the card, as on the whiteboard. */}
       <ul className="flex flex-wrap gap-2">
         {[
           LAND_COVER[zone.land_cover],
           FUEL_LOAD[zone.fuel_load],
-          `pendiente ${int(zone.slope_deg)}°`,
+          `${int(zone.slope_deg)}° slope`,
         ].map((pill) => (
           <li
             key={pill}
-            className="pointer-events-auto rounded-sm border border-night-700 bg-night-800/92 px-2 py-1 text-meta text-dim backdrop-blur-sm"
+            className="pointer-events-auto rounded-sm border border-line bg-surface/92 px-2 py-1 text-meta text-dim backdrop-blur-sm"
           >
             {pill}
           </li>

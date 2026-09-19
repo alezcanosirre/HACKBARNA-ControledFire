@@ -67,12 +67,16 @@ zonas «vacías». Es un fallo que parece del mapa y es de CSS.
 **Superficie flotante estándar** — todas las tarjetas de este documento la usan:
 
 ```
-fondo    night-800 al 92% + backdrop-blur   (se intuye el mapa detrás: flota)
-borde    1px night-700
+fondo    surface al 92% + backdrop-blur   (se intuye el mapa detrás: flota)
+borde    1px line
 radio    5px
 padding  16px
 sombra   ninguna
 ```
+
+**La superficie es clara y el mapa oscuro.** Es lo que separa la interfaz del terreno sin
+recurrir a una sombra: el salto de luminancia hace el trabajo que haría el relieve. Ver
+`DESIGN.md` §0 y §1.
 
 El `backdrop-blur` es lo que hace que se lea como flotante y no como un recorte. Es el
 único efecto de profundidad que se permite, y sustituye a la sombra que `DESIGN.md`
@@ -110,11 +114,11 @@ Dos anchos, con botón de expandir/contraer arriba:
 ```
 
 - **Página por defecto: Fuegos activos.** Marcada al arrancar, sin que nadie la elija.
-- **Item activo:** fondo `night-700`, texto `--text`, y una barra de 2px a la izquierda.
+- **Item activo:** fondo `--surface-2`, texto `--text`, y una barra de 2px a la izquierda.
   No solo color: el estado se marca también con forma, porque la regla de accesibilidad
   de `DESIGN.md` §6 lo exige.
 - **Item inactivo:** texto `--muted`, fondo transparente. Al pasar por encima, fondo
-  `night-700` al 50%.
+  `--surface-2` al 60%.
 - **Contador en vivo** («3 ahora mismo») solo en el modo expandido. Es el dato que dice
   si la pantalla merece atención ahora.
 - La anchura se anima 400ms `ease`. El mapa no se entera: no se reposiciona.
@@ -285,7 +289,7 @@ Consecuencias en la interfaz:
 - **El panel abre inmediatamente, no cuando llega la respuesta.** Entra con la estructura
   ya montada y los huecos en estado de carga. Un panel que tarda 400ms en aparecer se
   siente roto; uno que aparece vacío y se rellena, no.
-- **Esqueletos, no *spinners*.** Bloques en `night-700` del tamaño del contenido final.
+- **Esqueletos, no *spinners*.** Bloques en `--surface-2` del tamaño del contenido final.
   Nada gira.
 - **La lista de acciones es lo último en llegar** (la genera un modelo). Su esqueleto
   lleva un rótulo: «Analizando…». Es el único sitio donde se admite decir que se está
@@ -311,8 +315,9 @@ Tres salidas, de menos a más disruptiva:
 **A. Como lo pediste.** Fondo `#EC381C`, texto `--on-primary`. Máxima visibilidad, y la
 regla queda con una excepción declarada. Contraste 4,59:1 sobre el fondo: pasa AA justo.
 
-**B. Rojo solo en el borde y el texto.** Fondo transparente, borde 1px y texto en
-`#FF8A5C` (8,05:1, AAA). Se lee igual de rojo, pesa mucho menos y no compite con una
+**B. Rojo solo en el borde y el texto.** Fondo transparente, borde 1px y texto en rojo.
+*(Los ratios de esta sección se calcularon contra la interfaz oscura; hay que rehacerlos
+ahora que la superficie es clara.)* Se lee igual de rojo, pesa mucho menos y no compite con una
 celda rellena.
 
 **C. Neutro apagado, rojo encendido.** El botón es `--muted` en reposo. Al arrancar la
@@ -370,6 +375,9 @@ Una sala de control se maneja con las manos ocupadas. Mínimos:
 
 ## Registro
 
+- 19 sep 2026 — La capa flotante pasa a **superficie clara** sobre el mapa oscuro; ver
+  `DESIGN.md` §1. Afecta a §2, §3 y §8. Las tres salidas de §9 siguen abiertas, pero sus
+  ratios eran contra la interfaz oscura y hay que recalcularlos.
 - 19 sep 2026 — Creado desde tu descripción y las pizarras ACTUAL y PRED. Pendientes:
   la lista de incendios del §4 (está en la pizarra, no en tu descripción) y el rojo de
   SIMULATION (§9).

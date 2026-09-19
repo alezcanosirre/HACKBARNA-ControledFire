@@ -1,8 +1,8 @@
 export const MENU_STORAGE_KEY = 'cf.menu.collapsed';
 
 /**
- * Contraído se recuerda entre sesiones (UX.md §3): si alguien lo dejó cerrado, sigue
- * cerrado. Se lee una sola vez, en el inicializador del estado.
+ * Collapsed is remembered across sessions (UX.md §3): if someone left it closed, it
+ * stays closed. Read once, in the state initializer.
  */
 export function readCollapsed(): boolean {
   try {

@@ -3,12 +3,11 @@ import { VALUE_TYPE, num } from './format';
 import { SectionLabel, Surface } from './Surface';
 
 /**
- * La segunda tarjeta de la derecha, la «Prios» de la pizarra (UX.md §5).
+ * The second card on the right, the "Prios" from the whiteboard (UX.md §5).
  *
- * No repite la lista de «En riesgo» de la izquierda: aquella enumera lo que hay cerca,
- * esta lo ordena en secuencia de protección. Primero lo que está en la trayectoria del
- * viento, después por distancia. Arriba, el porqué de ese orden, que es el campo
- * `priority_rationale` de spec.md §6.4.
+ * It does not repeat the "At risk" list on the left: that one enumerates what is
+ * nearby, this one orders it into a protection sequence. Downwind first, then by
+ * distance. On top, why that order — the `priority_rationale` field of spec.md §6.4.
  */
 export function PrioritiesCard({ fire, analysis }: { fire: Fire; analysis: AIAnalysis }) {
   const order = [...fire.values_at_risk].sort(
@@ -16,9 +15,9 @@ export function PrioritiesCard({ fire, analysis }: { fire: Fire; analysis: AIAna
   );
 
   return (
-    <Surface padded={false} className="divide-y divide-night-700">
+    <Surface padded={false} className="divide-y divide-line">
       <header className="p-4">
-        <SectionLabel>Prioridades</SectionLabel>
+        <SectionLabel>Priorities</SectionLabel>
       </header>
       <p className="p-4 text-body text-dim">{analysis.priority_rationale}</p>
       <ul className="flex flex-col gap-2 p-4">
@@ -31,7 +30,7 @@ export function PrioritiesCard({ fire, analysis }: { fire: Fire; analysis: AIAna
               <span className={v.downwind ? 'text-text' : 'text-dim'}>{v.name}</span>
               <span className="text-meta text-muted">
                 {' '}
-                — {VALUE_TYPE[v.type].toLowerCase()} a {num(v.distance_km)} km
+                — {VALUE_TYPE[v.type].toLowerCase()} at {num(v.distance_km)} km
               </span>
             </span>
           </li>

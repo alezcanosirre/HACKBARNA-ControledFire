@@ -12,52 +12,52 @@ import { SideMenu } from './SideMenu';
 import { ArrowLeftIcon } from './icons';
 import { clearSelection, type Route } from './route';
 
-/** DESIGN.md §5. Un solo token de movimiento para toda la interfaz. */
+/** DESIGN.md §5. A single motion token for the whole interface. */
 const DURATION_MS = 400;
 
 /**
- * La capa flotante de UX.md §2. Todo lo que hay aquí está en `absolute` sobre el mapa,
- * y el contenedor lleva `pointer-events-none`: cada tarjeta se queda los clics que le
- * tocan y el resto de la pantalla sigue siendo mapa. Sin esto, la UI se come el picking
- * en las zonas vacías y parece un fallo del mapa cuando es de CSS.
+ * The floating layer of UX.md §2. Everything in here is `absolute` over the map, and
+ * the container carries `pointer-events-none`: each card takes the clicks that land on
+ * it and the rest of the screen is still map. Without this the UI eats the picking in
+ * the empty areas, and it looks like a map bug when it is a CSS one.
  *
- *   z-30  flecha de volver
- *   z-20  menú lateral / cards de detalle
- *   z-10  leyenda
- *   z-0   mapa (fuera de este componente)
+ *   z-30  back arrow
+ *   z-20  side menu / detail cards
+ *   z-10  legend
+ *   z-0   map (outside this component)
  */
 export function Shell({ route, activeFires }: { route: Route; activeFires: number }) {
   const fire = fireById(route.selection);
   const open = fire !== null;
 
   /*
-   * El registro de decisiones vive aquí y no dentro de la tarjeta: sobrevive a cerrar
-   * y volver a abrir un foco, que es justo lo que hace un coordinador. Se pierde al
-   * recargar; persistirlo es cosa del backend (spec §6.5, POST .../decision).
+   * The decision log lives here and not inside the card: it survives closing and
+   * reopening a fire, which is exactly what a coordinator does. It is lost on reload;
+   * persisting it is the backend's job (spec §6.5, POST .../decision).
    */
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
 
   /*
-   * El ancho del menú lo necesita también la leyenda, que se aparta para no quedar
-   * debajo. Por eso el estado vive aquí y no dentro de SideMenu.
+   * The legend needs the menu's width too, so it can step aside instead of sitting
+   * underneath. That is why this state lives here and not inside SideMenu.
    */
   const [collapsed, setCollapsed] = useState(readCollapsed);
   useEffect(() => {
     try {
       window.localStorage.setItem(MENU_STORAGE_KEY, collapsed ? '1' : '0');
     } catch {
-      // Navegación privada o almacenamiento lleno: se pierde la preferencia y ya está.
+      // Private browsing or full storage: the preference is lost and that is all.
     }
   }, [collapsed]);
 
   /*
-   * El detalle se mantiene montado 400 ms después de deseleccionar para que la salida
-   * se vea. Si se desmontara al instante, las tarjetas desaparecerían de golpe
-   * mientras el menú entra despacio, y la transición quedaría a medias.
+   * The detail stays mounted for 400 ms after deselecting so the exit can be seen. If
+   * it unmounted at once, the cards would vanish in a blink while the menu slides back
+   * in slowly, and the transition would be left half done.
    */
   const [shown, setShown] = useState(fire);
-  // Entrar es inmediato y se ajusta durante el render, no en un efecto: esperar a un
-  // efecto costaría un fotograma con el panel vacío.
+  // Entering is immediate and adjusted during render, not in an effect: waiting for an
+  // effect would cost one frame with the panel empty.
   if (fire && fire !== shown) setShown(fire);
   useEffect(() => {
     if (fire) return;
@@ -65,7 +65,7 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
     return () => window.clearTimeout(timer);
   }, [fire]);
 
-  // Esc deselecciona: es el atajo del botón de volver (UX.md §5 y §11).
+  // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -87,19 +87,20 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
         onToggle={() => setCollapsed((v) => !v)}
       />
 
-      {/* La leyenda se retira con el menú: mientras hay un incendio abierto, solo ese
-          incendio (UX.md §0, regla 2). La columna izquierda ocupa su sitio. */}
+      {/* Top right, opposite the menu, so neither one has to dodge the other: the
+          legend no longer depends on how wide the menu is.
+          It withdraws with the menu — while a fire is open there is only that fire
+          (UX.md §0, rule 2) — and it leaves to its own side, which is where the actions
+          column comes in. */}
       <Legend
-        className={`absolute bottom-4 z-10 transition-[opacity,transform,left] ${
-          collapsed ? 'left-24' : 'left-73'
-        } ${
-          open ? 'pointer-events-none -translate-x-8 opacity-0' : 'translate-x-0 opacity-100'
+        className={`absolute top-4 right-4 z-10 transition-[opacity,transform] ${
+          open ? 'pointer-events-none translate-x-8 opacity-0' : 'translate-x-0 opacity-100'
         }`}
       />
 
       {shown && (
         <>
-          {/* Columna izquierda, 360px: volver arriba del todo y debajo la información. */}
+          {/* Left column, 360px: back at the very top, information underneath. */}
           <div
             aria-hidden={!open}
             inert={!open || undefined}
@@ -111,8 +112,8 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
               <button
                 type="button"
                 onClick={clearSelection}
-                aria-label="Volver a la vista general"
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-md border border-night-700 bg-night-800/92 text-muted backdrop-blur-sm transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
+                aria-label="Back to overview"
+                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-md border border-line bg-surface/92 text-muted backdrop-blur-sm transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text"
               >
                 <ArrowLeftIcon />
               </button>
@@ -120,7 +121,7 @@ export function Shell({ route, activeFires }: { route: Route; activeFires: numbe
             <FireInfoCard fire={shown} />
           </div>
 
-          {/* Columna derecha, 360px: acciones arriba, prioridades debajo. */}
+          {/* Right column, 360px: actions on top, priorities below. */}
           <div
             aria-hidden={!open}
             inert={!open || undefined}

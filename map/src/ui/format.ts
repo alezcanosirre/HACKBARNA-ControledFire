@@ -1,36 +1,40 @@
 import type { FuelLoad, LandCover, ValueType } from '../mocks/types';
 
-const NUM = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 });
-const INT = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
+// en-GB, not en-US: metric units and a 24-hour clock, which is what a control room
+// reads. It also keeps the decimal point consistent with the rest of the interface.
+const LOCALE = 'en-GB';
+
+const NUM = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 1 });
+const INT = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
 
 export const num = (v: number) => NUM.format(v);
 export const int = (v: number) => INT.format(v);
 
-/** Hora de detección. Solo hora y minuto: el día es hoy y escribirlo es ruido. */
+/** Detection time. Hours and minutes only: the day is today and writing it is noise. */
 export function time(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
 }
 
 export const LAND_COVER: Record<LandCover, string> = {
-  urban: 'habitado',
-  wui: 'interfaz urbano-forestal',
-  forest: 'bosque',
-  scrub: 'matorral',
-  crop: 'cultivo',
-  bare: 'suelo desnudo',
+  urban: 'built-up',
+  wui: 'wildland-urban interface',
+  forest: 'forest',
+  scrub: 'scrub',
+  crop: 'cropland',
+  bare: 'bare ground',
 };
 
 export const FUEL_LOAD: Record<FuelLoad, string> = {
-  low: 'carga baja',
-  moderate: 'carga moderada',
-  high: 'carga alta',
-  extreme: 'carga extrema',
+  low: 'low fuel load',
+  moderate: 'moderate fuel load',
+  high: 'high fuel load',
+  extreme: 'extreme fuel load',
 };
 
 export const VALUE_TYPE: Record<ValueType, string> = {
-  school: 'Colegio',
+  school: 'School',
   hospital: 'Hospital',
-  care_home: 'Residencia',
-  settlement: 'Núcleo',
-  infrastructure: 'Infraestructura',
+  care_home: 'Care home',
+  settlement: 'Settlement',
+  infrastructure: 'Infrastructure',
 };

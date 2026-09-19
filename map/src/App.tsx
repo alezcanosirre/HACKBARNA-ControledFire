@@ -22,58 +22,108 @@ import { clearSelection, openSelection, useRoute } from './ui/route';
 
 type Outline = (typeof FIRE_OUTLINES)[number];
 
+/**
+ * Framing when a fire is selected. Two corrections over the raw fit:
+ *
+ * 1. With a fire open, the usable map is NOT the whole window: the two 360px columns
+ *    cover the sides. The fit is computed against the corridor in the middle, so the
+ *    fire ends up centred and whole between the two cards instead of underneath them.
+ * 2. A zoom cap of our own, lower than the map's. A flare-up does not have to fill the
+ *    screen: what is needed is to see WHERE it is, and for that the surrounding context
+ *    is worth more than the detail of the fire itself.
+ */
+const PANEL_W = 360;
+const PANEL_MARGIN = 16;
+const FOCUS_ZOOM_CAP = 12;
+
 export default function App() {
-  // La cámara es controlada: cada movimiento pasa por clampToArea antes de aplicarse,
-  // así el operador no puede salirse de la RMB ni alejarse por debajo de MIN_ZOOM.
+  // The camera is controlled: every movement goes through clampToArea before being
+  // applied, so the operator cannot leave the RMB or zoom out below MIN_ZOOM.
   const [viewState, setViewState] = useState<MapViewState>(VIEW_RMB);
-  // El acotado necesita saber cuánta pantalla hay. deck.gl lo mide y lo avisa en
-  // onResize; se guarda en una ref porque no tiene que provocar re-render por sí mismo.
+  // Clamping needs to know how much screen there is. deck.gl measures it and reports
+  // it in onResize; kept in a ref because it should not cause a re-render by itself.
   const size = useRef({ width: 0, height: 0 });
-  // deck.gl mide después del primer render. Sin esta señal, entrar por una URL con
-  // foco (`/actual/fire-3`) dejaba el panel abierto y la cámara donde estaba: el
-  // efecto de encuadre se ejecutaba con 0x0 y se rendía. Ver onResize.
+  // deck.gl measures after the first render. Without this signal, entering through a
+  // URL with a fire (`/actual/fire-3`) left the panel open and the camera where it was:
+  // the framing effect ran with 0x0 and gave up. See onResize.
   const [measured, setMeasured] = useState(false);
 
-  // La selección no es estado de este componente: vive en la URL (UX.md §1). Así
-  // recargar no pierde el sitio, el botón de volver y Esc entran por el mismo sitio
-  // que el clic, y la demo se puede saltar a un foco concreto si algo falla.
+  // The selection is not this component's state: it lives in the URL (UX.md §1). That
+  // way a reload does not lose the place, the back button and Esc come in through the
+  // same door as a click, and the demo can jump to a given fire if something fails.
   const route = useRoute();
-  // Se selecciona el INCENDIO, no la celda: un foco es un incidente, y todas sus
-  // celdas contiguas son la misma cosa.
+  // What gets selected is the FIRE, not the cell: a fire is one incident, and all its
+  // contiguous cells are the same thing.
   const selectedFire = route.page === 'actual' ? route.selection : null;
 
-  // Latido de las celdas con estado. Ver spec.md §4.8.
+  // Pulse of the cells with a status. See spec.md §4.8.
   const tick = usePulse(STATUS_CELLS.length > 0);
 
+  // What was selected in the previous render. Needed to tell "I just deselected" from
+  // "I arrived with nothing selected": the first has to return to the starting framing
+  // and the second is already there.
+  const previousFire = useRef<string | null>(selectedFire);
+
   /**
-   * Seleccionar un foco encuadra la cámara sobre él. Es la confirmación de que el clic
-   * ha ido donde el operador creía: la pantalla se mueve al sitio.
+   * Selecting a fire frames the camera on it. It is the confirmation that the click
+   * landed where the operator thought: the screen moves to the place.
    *
-   * Va en un efecto sobre la ruta y no en el manejador del clic porque la selección
-   * puede llegar también del historial o de una URL pegada, y en esos dos casos la
-   * cámara tiene que ir igual.
+   * And deselecting undoes the trip: the camera returns to VIEW_RMB, the same framing
+   * the page starts with. Going back has to give the whole screen back, not just close
+   * the cards and leave the operator wherever the last fire left them.
+   *
+   * It lives in an effect on the route and not in the click handler because a selection
+   * can also arrive from history or from a pasted URL, and in those two cases the
+   * camera has to move just the same.
    */
   useEffect(() => {
+    const leaving = previousFire.current;
+    previousFire.current = selectedFire;
+
     const target = selectedFire ? FIRES.find((f) => f.id === selectedFire) : null;
-    if (!target) return;
+    if (!target) {
+      // Arriving with no selection moves nothing: VIEW_RMB is where it starts.
+      if (!leaving) return;
+      setViewState({
+        ...VIEW_RMB,
+        transitionDuration: FOCUS_MS,
+        transitionInterpolator: new FlyToInterpolator(),
+      } as MapViewState);
+      return;
+    }
 
     const { width, height } = size.current;
-    // deck.gl todavía no ha medido: encuadrar con 0x0 daría un zoom sin sentido.
+    // deck.gl has not measured yet: framing with 0x0 would give a meaningless zoom.
     if (!width || !height) return;
 
-    // Actualización funcional: el efecto no depende de viewState, así que su closure
-    // llevaría uno viejo.
-    setViewState((prev) => ({
-      ...focusOn(target.bounds, prev, width, height),
-      transitionDuration: FOCUS_MS,
-      transitionInterpolator: new FlyToInterpolator(),
-    }) as MapViewState);
+    // Free width between the two columns. The width/3 floor is for narrow windows,
+    // where the cards eat almost everything and the corridor would come out negative.
+    const corridor = Math.max(width - 2 * (PANEL_W + 2 * PANEL_MARGIN), width / 3);
+
+    // Functional update: the effect does not depend on viewState, so its closure would
+    // be carrying a stale one.
+    setViewState((prev) => {
+      // focusOn centres on the fire and fits the zoom to whatever width it is given;
+      // with the corridor's, the fit comes out a step further than with the full window.
+      const framed = focusOn(target.bounds, prev, corridor, height);
+      // The re-clamp uses the REAL width: focusOn clamped against the corridor, which
+      // is not the screen, and would let terrain outside Catalonia show at the sides.
+      return {
+        ...clampToArea(
+          { ...framed, zoom: Math.min(framed.zoom ?? FOCUS_ZOOM_CAP, FOCUS_ZOOM_CAP) },
+          width,
+          height,
+        ),
+        transitionDuration: FOCUS_MS,
+        transitionInterpolator: new FlyToInterpolator(),
+      } as MapViewState;
+    });
   }, [selectedFire, measured]);
 
   const layers = useMemo(
     () => [
-      // Rejilla de referencia: sin estado, sin relleno y sin picking. No se puede
-      // pulsar porque no hay nada detrás que enseñar.
+      // Reference grid: no status, no fill and no picking. It cannot be clicked
+      // because there is nothing behind it to show.
       new QuadkeyLayer<Cell>({
         id: 'cells-grid',
         data: PLAIN_CELLS,
@@ -86,10 +136,10 @@ export default function App() {
         extruded: false,
         pickable: false,
       }),
-      // Las celdas que arden. La rejilla sigue viéndose por dentro de la mancha: el
-      // trazo por celda es el mismo gris de la rejilla base, así que la cuadrícula
-      // atraviesa el incendio sin romperse. Lo que agrupa el foco es el contorno
-      // exterior de la capa siguiente, no la ausencia de líneas interiores.
+      // The burning cells. The grid is still visible inside the blob: the per-cell
+      // stroke is the same grey as the base grid, so the lattice crosses the fire
+      // without breaking. What groups the fire is the outer outline of the next layer,
+      // not the absence of interior lines.
       new QuadkeyLayer<Cell>({
         id: 'cells-fire',
         data: STATUS_CELLS,
@@ -108,7 +158,7 @@ export default function App() {
         },
         updateTriggers: { getFillColor: [tick] },
       }),
-      // El contorno del incendio, no el de cada celda: solo los lados que dan afuera.
+      // The fire's outline, not each cell's: only the sides facing outwards.
       new LineLayer<Outline>({
         id: 'fire-outline',
         data: FIRE_OUTLINES,
@@ -140,14 +190,14 @@ export default function App() {
           if (width && height) setMeasured(true);
         }}
         onViewStateChange={({ viewState: next, interactionState }) => {
-          // Durante el vuelo no se acota: el destino ya venía acotado, y corregir cada
-          // fotograma intermedio rompía la transición a media animación.
+          // No clamping during the flight: the destination came clamped already, and
+          // correcting every intermediate frame broke the transition mid-animation.
           if (interactionState?.inTransition) {
             setViewState(next as MapViewState);
             return;
           }
-          // Se descartan las props de transición: si volvieran a entrar en el estado,
-          // cada fotograma del vuelo relanzaría el vuelo.
+          // The transition props are dropped: if they went back into the state, every
+          // frame of the flight would relaunch the flight.
           const { transitionDuration, transitionInterpolator, ...rest } =
             next as MapViewState & Record<string, unknown>;
           void transitionDuration;
@@ -158,8 +208,8 @@ export default function App() {
         }}
         controller={{ dragRotate: false }}
         layers={layers}
-        // Pulsar fuera de un incendio deselecciona. La rejilla base no es pickable, así
-        // que cualquier clic que no acierte una celda que arde llega aquí sin objeto.
+        // Clicking outside a fire deselects. The base grid is not pickable, so any
+        // click that misses a burning cell arrives here with no object.
         onClick={({ object }) => {
           if (!object) clearSelection();
         }}
@@ -168,7 +218,7 @@ export default function App() {
         <Map mapStyle={BASEMAP} reuseMaps />
       </DeckGL>
 
-      {/* Toda la interfaz va en una sola capa flotante encima del mapa. Ver UX.md §2. */}
+      {/* The whole interface lives in one floating layer over the map. See UX.md §2. */}
       <Shell route={route} activeFires={FIRES.length} />
     </div>
   );

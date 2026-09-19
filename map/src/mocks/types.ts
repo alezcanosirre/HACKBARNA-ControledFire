@@ -1,10 +1,11 @@
 /**
- * Contratos de datos de spec.md §6. Se escriben aquí, en map/, y no se importan de
- * ../src: el motor tiene su propio vocabulario y el adaptador de §6.0 es lo único que
- * cambiará cuando se conecten. Mientras tanto la interfaz habla solo este idioma.
+ * The data contracts of spec.md §6. They are written here, in map/, and not imported
+ * from ../src: the engine has its own vocabulary and the §6.0 adapter is the only thing
+ * that will change when the two are wired together. Until then the interface speaks
+ * only this language.
  */
 
-/** GeoJSON mínimo. No hay @types/geojson en el proyecto y no merece una dependencia. */
+/** Minimal GeoJSON. There is no @types/geojson here and it is not worth a dependency. */
 export interface Polygon {
   type: 'Polygon';
   coordinates: number[][][];
@@ -25,9 +26,9 @@ export interface ValueAtRisk {
   distance_km: number;
   population?: number;
   /**
-   * ¿Está en la trayectoria del viento? Es el campo que convierte «hay un colegio
-   * cerca» en «evacuar ese colegio ya», y por eso lleva marca propia en la UI
-   * (spec §6.2, UX §5).
+   * Is it in the path of the wind? This is the field that turns "there is a school
+   * nearby" into "evacuate that school now", which is why it gets a mark of its own in
+   * the UI (spec §6.2, UX §5).
    */
   downwind: boolean;
 }
@@ -37,8 +38,8 @@ export interface Fire {
   id: string;
   cell_id: string;
   /**
-   * DESVIACIÓN de spec §6.2: el contrato no trae topónimo, y UX §5 prohíbe enseñar el
-   * cell_id en crudo. Hasta que el backend lo devuelva, el nombre legible vive aquí.
+   * DEVIATION from spec §6.2: the contract carries no place name, and UX §5 forbids
+   * showing the raw cell_id. Until the backend returns one, the readable name lives here.
    */
   place: string;
   centroid: [number, number]; // [lat, lng]
@@ -66,9 +67,9 @@ export interface Fire {
 export interface RankedAction {
   action_id: string;
   label: string;
-  rank: number; // 1 = primero
+  rank: number; // 1 = first
   urgency: 'immediate' | 'soon' | 'monitor';
-  why: string; // justificación, obligatoria
+  why: string; // justification, mandatory
   resources?: string[];
   eta_min?: number;
   status: 'proposed' | 'accepted' | 'rejected' | 'done';
@@ -76,10 +77,10 @@ export interface RankedAction {
 
 /** spec.md §6.4 */
 export interface AIAnalysis {
-  target_id: string; // fire_id o cell_id
+  target_id: string; // fire_id or cell_id
   summary: string;
   priority_rationale: string;
   actions: RankedAction[];
-  model: string; // trazabilidad; se muestra en el pie del panel
+  model: string; // traceability; shown in the panel footer
   generated_at: string;
 }
