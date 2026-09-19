@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 import { analysisFor } from '../mocks/analysis.mock';
 import { fireById } from '../mocks/fires.mock';
-import { predictionFor, preventiveActionsFor } from '../mocks/predictions.mock';
 import type { Fire, Prediction } from '../mocks/types';
 import type { LiveFireSummary } from '../live/types';
 import { useFireActions } from '../live/useFireActions';
@@ -48,6 +47,7 @@ export function Shell({
   live,
   liveFires,
   riskCells = 0,
+  livePrediction,
 }: {
   route: Route;
   activeFires: number;
@@ -64,6 +64,8 @@ export function Shell({
   liveFires?: readonly LiveFireSummary[];
   /** How many cells carry risk on PRED. Drives the empty state, nothing else. */
   riskCells?: number;
+  /** Detail for a risk cell, from the backend heuristic. Nothing else feeds PRED. */
+  livePrediction?: (cellId: string | null) => Prediction | null;
 }) {
   /*
    * Three things can be selected, and which one depends on the page. ACTUAL opens a
@@ -74,7 +76,9 @@ export function Shell({
   const fire = onPred ? null : fireById(route.selection);
   const liveFire =
     onPred || fire ? null : (liveFires?.find((f) => f.id === route.selection) ?? null);
-  const prediction = onPred ? predictionFor(route.selection) : null;
+  // No mock fallback: if the heuristic has nothing for this cell, there is nothing to
+  // open. PRED only ever shows measured data — see App.tsx.
+  const prediction = onPred ? (livePrediction?.(route.selection) ?? null) : null;
   const open = fire !== null || liveFire !== null || prediction !== null;
 
   /*
@@ -121,13 +125,13 @@ export function Shell({
   const { analysis: liveAnalysis, loading: liveLoading, error: liveError } = useFireActions(
     shownIsLive ? (shown as LiveFireSummary) : null,
   );
-  const analysis = shownIsLive
-    ? liveAnalysis
-    : shownIsRisk
-      ? preventiveActionsFor((shown as Prediction).cell_id)
-      : shown
-        ? analysisFor(shown.id)
-        : null;
+  /*
+   * PRED has no actions yet, and it shows none rather than mocked ones. The real path
+   * exists for fires — POST /api/live-fires/:id/actions, which hands the cluster to
+   * Nebius server-side — and a risk cell needs the mirror of it. Until that endpoint is
+   * there, the column says so instead of inventing three plausible orders.
+   */
+  const analysis = shownIsLive ? liveAnalysis : shownIsRisk ? null : shown ? analysisFor(shown.id) : null;
 
   // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
@@ -214,6 +218,14 @@ export function Shell({
           >
             {shownIsLive && liveLoading && (
               <p className="p-4 text-meta text-muted">Generating recommended actions…</p>
+            )}
+            {shownIsRisk && (
+              <Surface as="aside">
+                <p className="text-label text-text">No preventive actions yet</p>
+                <p className="mt-1 text-meta text-muted">
+                  The model writes them for active fires. Forecast cells are next.
+                </p>
+              </Surface>
             )}
             {shownIsLive && liveError && (
               <p className="p-4 text-meta text-muted">Could not get AI actions: {liveError}</p>

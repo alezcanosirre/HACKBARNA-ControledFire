@@ -15,7 +15,7 @@ import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { quadkeysForH3Cells } from './live/h3ToQuadkey';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
-import { RISK_CELLS } from './mocks/predictions.mock';
+import { buildLiveRisk } from './pred/livePredictions';
 import { riskFill, riskStroke } from './pred/risk';
 
 /**
@@ -77,6 +77,7 @@ export default function App() {
   // PRED paints risk instead of fire. Same grid, same camera: only the data changes.
   const onPred = route.page === 'pred';
 
+
   /*
    * Two sources, and they are not the same kind of thing.
    *
@@ -88,6 +89,23 @@ export default function App() {
    * invented fire must never appear on a screen whose claim is that its fire is real.
    */
   const live = useLiveFireState();
+
+  /*
+   * Ignition risk: where a fire may START, which is a different question from where an
+   * existing one would spread. It comes from the backend heuristic (api/src/live/
+   * ignitionRisk.ts) over measured ignition history and current weather.
+   *
+   * NO FALLBACK TO A MOCK. Everything PRED paints is measured: the ignition history is
+   * Deepfire's, the weather is met.no's. What is ours is the formula that combines them,
+   * and the card says so. If the proxy is down PRED shows its empty state — a blank
+   * forecast is a problem you can see and fix, an invented one is a problem you find out
+   * about on stage.
+   */
+  const liveRisk = useMemo(
+    () => buildLiveRisk(live.data?.ignitionRisk ?? []),
+    [live.data],
+  );
+  const riskCells = liveRisk.cells;
   const [simulating, setSimulating] = useState(false);
   const sim = useSimulation(simulating);
 
@@ -221,14 +239,12 @@ export default function App() {
        * and nothing beats here — the pulse belongs to real fire, and a risk is not an
        * emergency (UX.md §6).
        *
-       * STILL MOCKED. The live feed returns `riskCellIds` as a flat list with no score
-       * per cell, so the ramp has nothing to interpolate yet. The components are typed
-       * against `Prediction` (spec §6.3), so connecting it means changing where the
-       * data comes from, not the UI.
+       * Every cell here is the backend's ignition-risk heuristic over measured data.
+       * Nothing is mocked: see the note where `liveRisk` is built.
        */
-      new QuadkeyLayer<(typeof RISK_CELLS)[number]>({
+      new QuadkeyLayer<{ cell_id: string; risk: number }>({
         id: 'pred-risk',
-        data: onPred ? RISK_CELLS : [],
+        data: onPred ? riskCells : [],
         getQuadkey: (d) => d.cell_id,
         getFillColor: (d) => riskFill(d.risk),
         getLineColor: (d) => riskStroke(d.risk),
@@ -240,7 +256,7 @@ export default function App() {
         onClick: ({ object }) => {
           if (object) openSelection(object.cell_id);
         },
-        updateTriggers: { getFillColor: [onPred], getLineColor: [onPred] },
+        updateTriggers: { getFillColor: [onPred, riskCells], getLineColor: [onPred, riskCells] },
       }),
       // The live Deepfire feed: what is burning right now, and what its spread
       // projection puts at risk. Arrives as H3 res-8 and is rasterised onto this grid
@@ -318,7 +334,7 @@ export default function App() {
         pickable: false,
       }),
     ],
-    [sim, tick, liveCells, liveStatus, quadkeyToFireId, onPred],
+    [sim, tick, liveCells, liveStatus, quadkeyToFireId, onPred, riskCells],
   );
 
   return (
@@ -368,7 +384,8 @@ export default function App() {
         route={route}
         activeFires={simulating ? (sim.onFire ? 1 : 0) : (live.data?.activeCellIds.length ?? 0)}
         liveFires={liveFires}
-        riskCells={RISK_CELLS.length}
+        riskCells={riskCells.length}
+        livePrediction={liveRisk.predictionFor}
         live={simulating ? {
           areaHa: sim.burnedAreaHa,
           minutes: sim.minutes,

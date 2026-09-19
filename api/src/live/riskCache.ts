@@ -2,6 +2,11 @@ import { runFireSpread } from "./deepfireFireSpread";
 import { cellsForMultiPolygon } from "./h3FromGeometry";
 import { RES_ACTIVE } from "./constants";
 
+export interface FireSpreadWind {
+  readonly speedMs: number;
+  readonly directionDeg: number;
+}
+
 // No tiene sentido re-simular la propagación cada 2 min — es una
 // simulación pesada (elmfire/forefire), no una consulta. 30 min es un
 // punto de partida razonable para una demo, ajustable si hace falta.
@@ -12,6 +17,7 @@ const RISK_HOURS = Number(process.env.FIRE_SPREAD_RISK_HOURS ?? 6);
 
 interface CacheEntry {
   readonly cellIds: ReadonlySet<string>;
+  readonly wind: FireSpreadWind | null;
   readonly updatedAt: number;
 }
 
@@ -20,6 +26,12 @@ const inFlight = new Set<string>();
 
 export function getCachedRiskCells(clusterId: string): ReadonlySet<string> {
   return cache.get(clusterId)?.cellIds ?? new Set();
+}
+
+/** The wind fire-spread averaged over its simulation window, if one has completed for
+ * this cluster — null while none has run yet or the last run had no summary. */
+export function getCachedWind(clusterId: string): FireSpreadWind | null {
+  return cache.get(clusterId)?.wind ?? null;
 }
 
 /**
@@ -44,10 +56,15 @@ export function ensureRiskSimulation(clusterId: string): void {
           }
         }
       }
+      const wind =
+        sim.status === "COMPLETED" && sim.summary
+          ? { speedMs: sim.summary.windSpeedAvgMs, directionDeg: sim.summary.windDirectionAvg }
+          : null;
+
       // NO_SPREAD/FAILED → celdas vacías, pero se cachea igual: es un
       // resultado válido (o al menos uno que no vale la pena reintentar
       // cada 2 min), no un fallo nuestro.
-      cache.set(clusterId, { cellIds, updatedAt: Date.now() });
+      cache.set(clusterId, { cellIds, wind, updatedAt: Date.now() });
     })
     .catch((err) => {
       console.error(`[live] fire-spread para cluster ${clusterId} falló:`, err);
