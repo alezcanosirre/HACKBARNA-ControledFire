@@ -23,7 +23,7 @@ const ANALYSES: AIAnalysis[] = [
     actions: [
       {
         action_id: 'EVACUATE_SCHOOL',
-        label: 'Evacuate CEIP Sant Jordi',
+        label: 'Evacuate CEIP Turó de Can Mates',
         rank: 1,
         urgency: 'immediate',
         why: '420 people 1.8 km away and downwind. At 27 km/h the front covers that distance in about 25 minutes; evacuating a school takes longer.',
@@ -69,7 +69,7 @@ const ANALYSES: AIAnalysis[] = [
         label: 'Ground crew to the eastern flank',
         rank: 1,
         urgency: 'immediate',
-        why: 'The 220 kV line is 2.2 km away and downwind. Losing it cuts supply to three municipalities.',
+        why: 'The 110 kV Montseny–Vic line is downwind. Losing it cuts supply to three municipalities.',
         resources: ['2 GRAF crews'],
         eta_min: 35,
         status: 'proposed',
@@ -181,8 +181,20 @@ const ANALYSES: AIAnalysis[] = [
 
 const BY_TARGET = new Map(ANALYSES.map((a) => [a.target_id, a]));
 
-// Same aliasing as fires.mock.ts: the running scenario is the Collserola fire.
+/*
+ * SIMULATION cases (api/src/scenario/simulatedFireCases.ts) reuse these analyses, keyed
+ * by case id. It is all mock on both sides of the panel, which is the point: SIMULATION
+ * is where the product is shown whole, and it sits behind a button so nobody mistakes it
+ * for ACTUAL. What matters is that the two halves agree — the school the actions name is
+ * the school the information card lists, which is why the label above was renamed.
+ *
+ * sim-sant-andreu has no entry: an urban fire needs different actions from a forest one,
+ * and lending it the Collserola ones would put a helicopter over a city block. It shows
+ * no actions until someone writes them.
+ */
 BY_TARGET.set('collserola-v1', ANALYSES[0]);
+BY_TARGET.set('sim-collserola', ANALYSES[0]);
+BY_TARGET.set('sim-montseny', ANALYSES[1]);
 
 /** The AI's analysis for a target, or null if none is mocked yet. */
 export function analysisFor(targetId: string | null): AIAnalysis | null {

@@ -17,14 +17,22 @@ async function pollOnce(): Promise<void> {
     setLiveFireState(state);
     console.log(
       `[live] ${state.fires.length} incendio(s), ${state.hotspots.length} detección(es), ` +
-        `${state.activeCellIds.length} celda(s) ardiendo, ${state.riskCellIds.length} en riesgo`,
+        `${state.activeCellIds.length} celda(s) ardiendo, ${state.riskCellIds.length} en riesgo, ` +
+        `${state.ignitionRisk.length} celda(s) con riesgo de ignición`,
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
     console.error("[live] refresh failed:", message);
     // Se conserva el último dato bueno si lo hay — un fallo puntual de la
     // API no debe dejar el mapa en blanco.
-    setLiveFireError(message, { fires: [], activeCellIds: [], riskCellIds: [], hotspots: [], fetchedAt: Date.now() });
+    setLiveFireError(message, {
+      fires: [],
+      activeCellIds: [],
+      riskCellIds: [],
+      ignitionRisk: [],
+      hotspots: [],
+      fetchedAt: Date.now(),
+    });
   }
 }
 

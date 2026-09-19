@@ -51,6 +51,8 @@ function makeFire(overrides: Partial<LiveFireSummary> = {}): LiveFireSummary {
     confidence: "MEDIUM",
     source: "VIIRS_NOAA21_NRT",
     fireRadiativePowerMw: 1.2,
+    wind: null,
+    weather: null,
     ...overrides,
   };
 }

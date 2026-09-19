@@ -23,10 +23,18 @@ interface FireSpreadResult {
   }[];
 }
 
+export interface FireSpreadSummary {
+  readonly burnedAreaM2: number;
+  readonly edgeReached: boolean;
+  readonly windSpeedAvgMs: number;
+  readonly windDirectionAvg: number;
+}
+
 interface FireSpreadSimulation {
   readonly id: string;
   readonly status: FireSpreadStatus;
   readonly result?: FireSpreadResult;
+  readonly summary?: FireSpreadSummary;
   readonly errorMessage?: string;
 }
 

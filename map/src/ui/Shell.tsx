@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 import { analysisFor } from '../mocks/analysis.mock';
 import { fireById } from '../mocks/fires.mock';
-import { predictionFor, preventiveActionsFor } from '../mocks/predictions.mock';
 import type { Fire, Prediction } from '../mocks/types';
 import type { LiveFireSummary } from '../live/types';
 import { useFireActions } from '../live/useFireActions';
@@ -18,14 +17,6 @@ import { SideMenu } from './SideMenu';
 import { Surface } from './Surface';
 import { ArrowLeftIcon } from './icons';
 import { clearSelection, type Route } from './route';
-
-/** The subset of the Engine's state the detail panel can actually use. */
-export interface LiveFire {
-  areaHa: number;
-  minutes: number;
-  burningCells: number;
-  weather: { temp_c: number; humidity_pct: number; wind_speed_kmh: number; wind_dir_deg: number };
-}
 
 /** DESIGN.md §5. A single motion token for the whole interface. */
 const DURATION_MS = 400;
@@ -46,25 +37,24 @@ export function Shell({
   activeFires,
   simulating,
   onToggleSimulation,
-  live,
   liveFires,
   riskCells = 0,
+  livePrediction,
+  simulatedFire,
 }: {
   route: Route;
   activeFires: number;
   /** Whether the Fire Engine is running. ACTUAL is live data; this is the other source. */
   simulating: boolean;
   onToggleSimulation: () => void;
-  /**
-   * What the Engine knows, passed straight down to the information card. Everything
-   * else in the detail panel is still mocked — the Engine has no place names, no
-   * detection source and no population at risk. See FireInfoCard.
-   */
-  live?: LiveFire;
   /** Real Deepfire detections clicked on the map — see live/types.ts LiveFireSummary. */
   liveFires?: readonly LiveFireSummary[];
   /** How many cells carry risk on PRED. Drives the empty state, nothing else. */
   riskCells?: number;
+  /** Detail for a risk cell, from the backend heuristic. Nothing else feeds PRED. */
+  livePrediction?: (cellId: string | null) => Prediction | null;
+  /** A SIMULATION case by id. Static data, so it is a plain lookup, not a hook. */
+  simulatedFire?: (id: string | null) => { fire: Fire } | null;
 }) {
   /*
    * Three things can be selected, and which one depends on the page. ACTUAL opens a
@@ -72,10 +62,15 @@ export function Shell({
    * per-cell number and there is no incident to group (UX.md §7).
    */
   const onPred = route.page === 'pred';
-  const fire = onPred ? null : fireById(route.selection);
+  // A SIMULATION case first: it is the only source with a full incident to show.
+  const fire = onPred
+    ? null
+    : (simulatedFire?.(route.selection)?.fire ?? fireById(route.selection));
   const liveFire =
     onPred || fire ? null : (liveFires?.find((f) => f.id === route.selection) ?? null);
-  const prediction = onPred ? predictionFor(route.selection) : null;
+  // No mock fallback: if the heuristic has nothing for this cell, there is nothing to
+  // open. PRED only ever shows measured data — see App.tsx.
+  const prediction = onPred ? (livePrediction?.(route.selection) ?? null) : null;
   const open = fire !== null || liveFire !== null || prediction !== null;
 
   /*
@@ -125,11 +120,13 @@ export function Shell({
   const { analysis: liveRecommendation, loading: liveLoading, error: liveError } = useFireActions(
     shownIsLive ? (shown as LiveFireSummary) : null,
   );
-  const analysis = shownIsRisk
-    ? preventiveActionsFor((shown as Prediction).cell_id)
-    : shown && !shownIsLive
-      ? analysisFor(shown.id)
-      : null;
+  /*
+   * PRED has no actions yet, and it shows none rather than mocked ones — the risk-cell
+   * placeholder above covers it. Live fires render their own recommendation via
+   * LiveActionsCard above, using `liveRecommendation` directly, so `analysis` here is
+   * only ever for the SIMULATION mock fires (analysisFor).
+   */
+  const analysis = shown && !shownIsLive && !shownIsRisk ? analysisFor(shown.id) : null;
 
   // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
@@ -203,7 +200,7 @@ export function Shell({
             ) : shownIsRisk ? (
               <RiskCard prediction={shown as Prediction} />
             ) : (
-              shown && <FireInfoCard fire={shown as Fire} live={live} />
+              shown && <FireInfoCard fire={shown as Fire} />
             )}
           </div>
 
@@ -216,6 +213,14 @@ export function Shell({
           >
             {shownIsLive && liveLoading && (
               <p className="p-4 text-meta text-muted">Generating recommended actions…</p>
+            )}
+            {shownIsRisk && (
+              <Surface as="aside">
+                <p className="text-label text-text">No preventive actions yet</p>
+                <p className="mt-1 text-meta text-muted">
+                  The model writes them for active fires. Forecast cells are next.
+                </p>
+              </Surface>
             )}
             {shownIsLive && liveError && (
               <p className="p-4 text-meta text-muted">Could not get AI actions: {liveError}</p>

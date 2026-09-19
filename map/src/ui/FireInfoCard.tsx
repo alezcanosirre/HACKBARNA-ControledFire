@@ -42,31 +42,8 @@ function Row({ children }: { children: ReactNode }) {
  * The information card of UX.md §5, in the order of spec.md §5.2: who and when, the
  * big number, the conditions and what is at risk. Never the raw cell_id.
  */
-export function FireInfoCard({
-  fire,
-  live,
-}: {
-  fire: Fire;
-  /**
-   * What the Engine actually knows, when a simulation is running. Everything here
-   * overrides the mock: showing 27 km/h of mocked wind next to a fire spreading at the
-   * Engine's 25 would be two different fires on one card.
-   *
-   * What is NOT here stays mocked because the Engine has no model for it: the place
-   * name, the detection source, and the values at risk (it has vulnerable areas, but
-   * no type, population or distance). And `spread` is out of its contract on purpose —
-   * `FireCell` says the rates are internal — so the live run shows the size of the
-   * active front instead, which is a real number.
-   */
-  live?: {
-    areaHa: number;
-    minutes: number;
-    burningCells: number;
-    weather: { temp_c: number; humidity_pct: number; wind_speed_kmh: number; wind_dir_deg: number };
-  };
-}) {
-  const { spread, zone } = fire;
-  const weather = live?.weather ?? fire.weather;
+export function FireInfoCard({ fire }: { fire: Fire }) {
+  const { spread, zone, weather } = fire;
 
   // Downwind first: that is what decides an evacuation. Ties go to whatever is closest.
   const atRisk = [...fire.values_at_risk].sort(
@@ -79,20 +56,14 @@ export function FireInfoCard({
         <header className="p-4">
           <h1 className="text-heading font-semibold text-text">{fire.place}</h1>
           <p className="mt-1 text-meta text-muted">
-            {/*
-              A simulation has no wall clock and no detection source: what it has is
-              elapsed simulated time. Showing 14:32 next to a running Engine would be a
-              lie, so the live run says how long it has been burning instead.
-            */}
-            {live
-              ? `t+${int(live.minutes)} min · simulation`
-              : `${time(fire.detected_at)} · ${fire.source} · ${Math.round(fire.confidence * 100)}% confidence`}
+            {time(fire.detected_at)} · {fire.source} ·{' '}
+            {Math.round(fire.confidence * 100)}% confidence
           </p>
         </header>
 
         {/* The number the panel is opened for (DESIGN.md §2: display, only here). */}
         <div className="flex items-baseline gap-2 p-4">
-          <span className="text-display text-text">{num(live?.areaHa ?? fire.area_ha)}</span>
+          <span className="text-display text-text">{num(fire.area_ha)}</span>
           <span className="text-meta text-muted">ha affected</span>
         </div>
 
@@ -110,17 +81,8 @@ export function FireInfoCard({
             <span className="text-text">{int(weather.humidity_pct)} %</span>
           </Row>
           <Row>
-            {live ? (
-              <>
-                <span className="text-muted">Front</span>
-                <span className="text-text">{int(live.burningCells)} cells</span>
-              </>
-            ) : (
-              <>
-                <Arrow deg={spread.direction_deg} label="Spread direction" />
-                <span className="text-text">{num(spread.speed_kmh)} km/h</span>
-              </>
-            )}
+            <Arrow deg={spread.direction_deg} label="Spread direction" />
+            <span className="text-text">{num(spread.speed_kmh)} km/h</span>
           </Row>
         </div>
 

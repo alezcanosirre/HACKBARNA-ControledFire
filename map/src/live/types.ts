@@ -27,12 +27,36 @@ export interface LiveFireSummary {
   readonly confidence: LiveHotspot['confidence'] | null;
   readonly source: string | null;
   readonly fireRadiativePowerMw: number | null;
+  readonly wind: { readonly speedMs: number; readonly directionDeg: number } | null;
+  /** El tiempo que hace AHORA sobre el foco, de met.no. Deepfire no da meteo. */
+  readonly weather: {
+    readonly temperatureC: number;
+    readonly humidityPct: number;
+    readonly windSpeedKmh: number;
+    readonly windDirectionDeg: number;
+  } | null;
+}
+
+/** Una celda con riesgo de ignición, tal cual la calcula api/src/live/ignitionRisk.ts. */
+export interface LiveIgnitionRiskCell {
+  readonly cell_id: string; // H3 res-8
+  readonly risk: number; // 0-1
+  readonly lat: number;
+  readonly lng: number;
+  readonly horizonHours: number;
+  readonly drivers: readonly {
+    readonly factor: string;
+    readonly contribution: number;
+    readonly value: string;
+  }[];
 }
 
 export interface LiveFireState {
   readonly fires: readonly LiveFireSummary[];
   readonly activeCellIds: readonly string[]; // res-8, ardiendo AHORA
-  readonly riskCellIds: readonly string[]; // res-8, riesgo próximas horas
+  readonly riskCellIds: readonly string[]; // res-8, propagación de un foco activo
+  /** Riesgo de IGNICIÓN (PRED): dónde puede empezar un fuego, no hacia dónde iría uno. */
+  readonly ignitionRisk: readonly LiveIgnitionRiskCell[];
   readonly hotspots: readonly LiveHotspot[];
   readonly fetchedAt: number;
   // Del último ciclo de refresco del servidor, si falló — el resto de

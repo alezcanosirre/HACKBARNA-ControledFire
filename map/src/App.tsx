@@ -8,14 +8,18 @@ import { PRED_CELLS, type Cell } from './map/grid';
 import { STATUS_FILL, STATUS_STROKE, pulsed } from './map/colors';
 import { usePulse } from './map/pulse';
 import { clampToArea, focusOn } from './map/view';
-import type { CellState } from '../../api/src/types';
-import { SIM_FIRE_ID, useSimulation } from './engine/useSimulation';
+import {
+  SIMULATED_CELLS,
+  SIMULATED_FIRES,
+  simulatedFireById,
+  type SimulatedCell,
+} from './engine/simulatedFires';
 import { useLiveFireState } from './live/useLiveFireState';
 import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { quadkeysForH3Cells } from './live/h3ToQuadkey';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
-import { RISK_CELLS } from './mocks/predictions.mock';
+import { buildLiveRisk } from './pred/livePredictions';
 import { riskFill, riskStroke } from './pred/risk';
 
 /**
@@ -32,17 +36,6 @@ const PANEL_W = 360;
 const PANEL_MARGIN = 16;
 const FOCUS_ZOOM_CAP = 12;
 
-/**
- * Data colours for the states the Engine has and src/map/colors.ts does not paint yet
- * (it only covers NORMAL and BURNING). They follow spec.md §4.7: BURNED reuses the
- * `contained` grey, because a burnt-out cell is no longer urgent, and PROTECTED takes
- * the cool `watch` blue — the one piece of good news on the map, and therefore never
- * warm. They live here and not in src/map/, which belongs to the other session.
- */
-const BURNED_FILL: [number, number, number, number] = [122, 122, 138, 90];
-const BURNED_STROKE: [number, number, number, number] = [160, 160, 175, 130];
-const PROTECTED_FILL: [number, number, number, number] = [96, 165, 250, 70];
-const PROTECTED_STROKE: [number, number, number, number] = [147, 197, 253, 130];
 
 /**
  * The burning fill, modulated by the Engine's per-cell intensity (0-1). Only the alpha
@@ -77,6 +70,7 @@ export default function App() {
   // PRED paints risk instead of fire. Same grid, same camera: only the data changes.
   const onPred = route.page === 'pred';
 
+
   /*
    * Two sources, and they are not the same kind of thing.
    *
@@ -87,9 +81,26 @@ export default function App() {
    * SIMULATION runs the Fire Engine. It stays stopped until someone presses the button:
    * invented fire must never appear on a screen whose claim is that its fire is real.
    */
-  const live = useLiveFireState();
   const [simulating, setSimulating] = useState(false);
-  const sim = useSimulation(simulating);
+  // With SIMULATION on nothing is asked of Deepfire: see useLiveFireState.
+  const live = useLiveFireState(!simulating);
+
+  /*
+   * Ignition risk: where a fire may START, which is a different question from where an
+   * existing one would spread. It comes from the backend heuristic (api/src/live/
+   * ignitionRisk.ts) over measured ignition history and current weather.
+   *
+   * NO FALLBACK TO A MOCK. Everything PRED paints is measured: the ignition history is
+   * Deepfire's, the weather is met.no's. What is ours is the formula that combines them,
+   * and the card says so. If the proxy is down PRED shows its empty state — a blank
+   * forecast is a problem you can see and fix, an invented one is a problem you find out
+   * about on stage.
+   */
+  const liveRisk = useMemo(
+    () => buildLiveRisk(live.data?.ignitionRisk ?? []),
+    [live.data],
+  );
+  const riskCells = liveRisk.cells;
 
   /*
    * Deepfire answers in H3; this map is drawn on quadkeys. The conversion happens right
@@ -128,7 +139,7 @@ export default function App() {
   );
 
   // Pulse of the burning cells. See spec.md §4.8.
-  const tick = usePulse(sim.onFire);
+  const tick = usePulse(simulating);
 
   // What was selected in the previous render. Needed to tell "I just deselected" from
   // "I arrived with nothing selected": the first has to return to the starting framing
@@ -151,7 +162,7 @@ export default function App() {
     const leaving = previousFire.current;
     previousFire.current = selectedFire;
 
-    const target = selectedFire === SIM_FIRE_ID ? sim.fireBounds : null;
+    const target = simulatedFireById(selectedFire)?.bounds ?? null;
     if (!target) {
       // Arriving with no selection moves nothing: VIEW_RMB is where it starts.
       if (!leaving) return;
@@ -189,10 +200,7 @@ export default function App() {
         transitionInterpolator: new FlyToInterpolator(),
       } as MapViewState;
     });
-    // sim.fireBounds is read but deliberately NOT a dependency: it changes on every
-    // Engine tick and the camera would chase the fire as it grows, which is unusable.
-    // Framing happens when the selection changes, and then the operator is in control.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [selectedFire, measured]);
 
   const layers = useMemo(
@@ -221,14 +229,12 @@ export default function App() {
        * and nothing beats here — the pulse belongs to real fire, and a risk is not an
        * emergency (UX.md §6).
        *
-       * STILL MOCKED. The live feed returns `riskCellIds` as a flat list with no score
-       * per cell, so the ramp has nothing to interpolate yet. The components are typed
-       * against `Prediction` (spec §6.3), so connecting it means changing where the
-       * data comes from, not the UI.
+       * Every cell here is the backend's ignition-risk heuristic over measured data.
+       * Nothing is mocked: see the note where `liveRisk` is built.
        */
-      new QuadkeyLayer<(typeof RISK_CELLS)[number]>({
+      new QuadkeyLayer<{ cell_id: string; risk: number }>({
         id: 'pred-risk',
-        data: onPred ? RISK_CELLS : [],
+        data: onPred ? riskCells : [],
         getQuadkey: (d) => d.cell_id,
         getFillColor: (d) => riskFill(d.risk),
         getLineColor: (d) => riskStroke(d.risk),
@@ -240,7 +246,7 @@ export default function App() {
         onClick: ({ object }) => {
           if (object) openSelection(object.cell_id);
         },
-        updateTriggers: { getFillColor: [onPred], getLineColor: [onPred] },
+        updateTriggers: { getFillColor: [onPred, riskCells], getLineColor: [onPred, riskCells] },
       }),
       // The live Deepfire feed: what is burning right now, and what its spread
       // projection puts at risk. Arrives as H3 res-8 and is rasterised onto this grid
@@ -270,29 +276,21 @@ export default function App() {
           onClick: [quadkeyToFireId],
         },
       }),
-      // The scar: cells the fire has already gone through. Painted under the flames,
-      // unlit and not pulsing — it is where the fire HAS been, not where it is.
-      new QuadkeyLayer<CellState>({
-        id: 'sim-burned',
-        data: onPred ? [] : sim.burned,
-        getQuadkey: sim.cellId,
-        getFillColor: BURNED_FILL,
-        getLineColor: BURNED_STROKE,
-        lineWidthMinPixels: 1,
-        filled: true,
-        stroked: true,
-        extruded: false,
-        pickable: true,
-        onClick: () => openSelection(SIM_FIRE_ID),
-      }),
-      // The fire itself, straight from the Engine and beating. The only thing on the
-      // screen that moves without the operator asking (spec.md §4.8).
-      new QuadkeyLayer<CellState>({
+      /*
+       * SIMULATION. Three fixed cases from api/src/scenario/simulatedFireCases.ts — a
+       * picture of what burns, not a propagation: there is no clock behind this any
+       * more. They only appear while the button is on, which is the whole line between
+       * what is really burning and what is being shown (see SideMenu).
+       *
+       * They still beat, because on this screen a beating cell means fire (spec §4.8)
+       * and these are fires. What they are not is real, and the button says so.
+       */
+      new QuadkeyLayer<SimulatedCell>({
         id: 'sim-burning',
-        data: onPred ? [] : sim.burning,
-        getQuadkey: sim.cellId,
-        // The Engine's per-cell intensity drives the alpha: the head of the front
-        // reads hotter than the flanks, which is the shape an operator looks for.
+        data: simulating && !onPred ? SIMULATED_CELLS : [],
+        getQuadkey: (d) => d.cell_id,
+        // Per-cell intensity drives the alpha: the head of the front reads hotter than
+        // the flanks, which is the shape an operator looks for.
         getFillColor: (d) => pulsed(intensityFill(d.intensity), tick),
         getLineColor: STATUS_STROKE.BURNING,
         lineWidthMinPixels: 1,
@@ -300,25 +298,13 @@ export default function App() {
         stroked: true,
         extruded: false,
         pickable: true,
-        onClick: () => openSelection(SIM_FIRE_ID),
-        updateTriggers: { getFillColor: [tick] },
-      }),
-      // Firebreaks. Cool grey on purpose: protected ground is the one thing on this
-      // map that is good news, and warm is reserved for what burns.
-      new QuadkeyLayer<CellState>({
-        id: 'sim-protected',
-        data: onPred ? [] : sim.protectedCells,
-        getQuadkey: sim.cellId,
-        getFillColor: PROTECTED_FILL,
-        getLineColor: PROTECTED_STROKE,
-        lineWidthMinPixels: 1,
-        filled: true,
-        stroked: true,
-        extruded: false,
-        pickable: false,
+        onClick: ({ object }: { object?: SimulatedCell }) => {
+          if (object) openSelection(object.fireId);
+        },
+        updateTriggers: { getFillColor: [tick], data: [simulating, onPred] },
       }),
     ],
-    [sim, tick, liveCells, liveStatus, quadkeyToFireId, onPred],
+    [simulating, tick, liveCells, liveStatus, quadkeyToFireId, onPred, riskCells],
   );
 
   return (
@@ -360,28 +346,19 @@ export default function App() {
 
       {/*
         The whole interface lives in one floating layer over the map (UX.md §2). The
-        live figures it needs come from the Engine, not from the mocks: the hectare
-        count is `state.fire.burnedAreaHa`, the Engine's own, never derived from cell
-        size (see engine/anchor.ts).
+        `live` prop that used to carry the Engine's running figures is gone with the
+        Engine: a simulated case is a fixed picture, so its numbers travel inside the
+        case itself and the detail panel reads them straight from there.
       */}
       <Shell
         route={route}
-        activeFires={simulating ? (sim.onFire ? 1 : 0) : (live.data?.activeCellIds.length ?? 0)}
+        activeFires={
+          simulating ? SIMULATED_FIRES.length : (live.data?.fires?.length ?? 0)
+        }
         liveFires={liveFires}
-        riskCells={RISK_CELLS.length}
-        live={simulating ? {
-          areaHa: sim.burnedAreaHa,
-          minutes: sim.minutes,
-          burningCells: sim.burning.length,
-          // EnvironmentState maps one to one onto spec §6.2's weather, wind convention
-          // included: both count degrees as the direction the wind blows FROM.
-          weather: {
-            temp_c: sim.environment.temperature,
-            humidity_pct: sim.environment.humidity * 100,
-            wind_speed_kmh: sim.environment.wind.speed,
-            wind_dir_deg: sim.environment.wind.direction,
-          },
-        } : undefined}
+        riskCells={riskCells.length}
+        livePrediction={liveRisk.predictionFor}
+        simulatedFire={simulatedFireById}
         simulating={simulating}
         onToggleSimulation={() => setSimulating((v) => !v)}
       />
