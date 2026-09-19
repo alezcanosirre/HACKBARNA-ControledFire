@@ -48,3 +48,9 @@ export const VIEW_BCN = { ...BCN_CENTER, zoom: 9.2, pitch: 0, bearing: 0 };
 
 // CARTO, sin API key. Ver spec.md §4.5
 export const BASEMAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+
+// Al clicar un foco la cámara se acerca a él. Sin tope, un conato de siete celdas
+// dispararía el zoom hasta perder todo el contexto alrededor.
+export const FOCUS_MAX_ZOOM = 13;
+export const FOCUS_PADDING_PX = 80;
+export const FOCUS_MS = 650;

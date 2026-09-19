@@ -195,6 +195,8 @@ export interface Fire {
   readonly id: string;
   readonly cells: readonly Cell[];
   readonly areaKm2: number;
+  /** Extensión del foco [[oeste, sur], [este, norte]]. Para encuadrarlo al clicarlo. */
+  readonly bounds: readonly [LngLat, LngLat];
   /** Solo los lados que dan al exterior del grupo: el contorno de la mancha. */
   readonly outline: ReadonlyArray<readonly [LngLat, LngLat]>;
 }
@@ -244,9 +246,17 @@ function buildFires(cells: readonly Cell[]): Fire[] {
     const inGroup = new Set(groupXY.map(([x, y]) => key(x, y)));
     const outline: Array<[LngLat, LngLat]> = [];
     let areaKm2 = 0;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
 
     for (const [x, y] of groupXY) {
       areaKm2 += cellSideKm(y) ** 2;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
       const w = tileToLng(x);
       const e = tileToLng(x + 1);
       const n = tileToLat(y);
@@ -257,7 +267,12 @@ function buildFires(cells: readonly Cell[]): Fire[] {
       if (!inGroup.has(key(x + 1, y))) outline.push([[e, n], [e, s]]);
     }
 
-    out.push({ id: `fire-${out.length + 1}`, cells: group, areaKm2, outline });
+    const bounds: [LngLat, LngLat] = [
+      [tileToLng(minX), tileToLat(maxY + 1)],   // esquina suroeste
+      [tileToLng(maxX + 1), tileToLat(minY)],   // esquina noreste
+    ];
+
+    out.push({ id: `fire-${out.length + 1}`, cells: group, areaKm2, outline, bounds });
   }
 
   // Mayor primero: el número de foco sigue al tamaño, que es como se nombran al hablar.
