@@ -60,6 +60,9 @@ export interface ResourceState {
   readonly position: Position;
   readonly status: ResourceStatus;
   readonly busyUntil: SimMinutes | null; // null when not on cooldown
+  // effectiveness is static in Scenario but copied here at
+  // createInitialState() time, same reasoning as CellState's terrainType/slope.
+  readonly effectiveness: number; // 0-1, how much this resource reduces fire when deployed
 }
 
 /** Engine-authored, factual log line. The AI reads this; it never writes to it. */

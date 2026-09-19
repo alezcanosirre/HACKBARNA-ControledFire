@@ -44,6 +44,7 @@ export function createInitialState(scenario: Scenario): SimulationState {
     position: resource.startPosition,
     status: "AVAILABLE",
     busyUntil: null,
+    effectiveness: resource.effectiveness,
   }));
 
   return {
