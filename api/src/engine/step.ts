@@ -1,8 +1,13 @@
-import type { Action, SimulationEvent, SimulationState } from "../types";
+import type { Action, SimulationState } from "../types";
+import { propagateTick } from "./fire/propagateTick";
+
+const TICK_MINUTES = 5;
 
 /**
  * step() always returns a NEW SimulationState, never mutates the one it
- * received. Only WAIT has real behavior so far: it advances the clock and
+ * received. Only WAIT has real behavior so far: it runs the fire forward in
+ * fixed TICK_MINUTES ticks (a WAIT of 12 minutes runs 2 ticks; the leftover
+ * 2 minutes still advance the clock but don't trigger a partial tick), then
  * logs a factual event. A WAIT with minutes <= 0 is invalid and is dropped
  * silently (no time change, not recorded in executedActions) rather than
  * throwing — the Engine stays defensive against a malformed action from
@@ -11,8 +16,7 @@ import type { Action, SimulationEvent, SimulationState } from "../types";
  * validation and execution.
  */
 export function step(state: SimulationState, actions: Action[]): SimulationState {
-  let time = state.time.current;
-  const events: SimulationEvent[] = [];
+  let current = state;
   const executedActions: Action[] = [];
 
   for (const action of actions) {
@@ -25,16 +29,23 @@ export function step(state: SimulationState, actions: Action[]): SimulationState
       continue;
     }
 
-    time += action.minutes;
-    events.push({ time, message: `Esperado ${action.minutes} minutos.` });
+    const ticks = Math.floor(action.minutes / TICK_MINUTES);
+    for (let i = 0; i < ticks; i++) {
+      current = propagateTick(current);
+    }
+
+    const time = current.time.current + action.minutes;
+    current = {
+      ...current,
+      time: { current: time },
+      events: [...current.events, { time, message: `Esperado ${action.minutes} minutos.` }],
+      mission: { ...current.mission, elapsedMinutes: time },
+    };
     executedActions.push(action);
   }
 
   return {
-    ...state,
-    time: { current: time },
-    events: [...state.events, ...events],
-    executedActions: [...state.executedActions, ...executedActions],
-    mission: { ...state.mission, elapsedMinutes: time },
+    ...current,
+    executedActions: [...current.executedActions, ...executedActions],
   };
 }

@@ -20,13 +20,18 @@ function positionKey(position: Position): string {
 export function createInitialState(scenario: Scenario): SimulationState {
   const ignitionKeys = new Set(scenario.initialFire.ignitionCells.map(positionKey));
 
-  const cells: CellState[] = scenario.terrain.map((terrainCell) => ({
-    position: terrainCell.position,
-    remainingFuel: terrainCell.initialFuel,
-    status: ignitionKeys.has(positionKey(terrainCell.position)) ? "BURNING" : "NORMAL",
-    terrainType: terrainCell.type,
-    slope: terrainCell.slope,
-  }));
+  const cells: CellState[] = scenario.terrain.map((terrainCell) => {
+    const isIgnition = ignitionKeys.has(positionKey(terrainCell.position));
+    return {
+      position: terrainCell.position,
+      remainingFuel: terrainCell.initialFuel,
+      status: isIgnition ? "BURNING" : "NORMAL",
+      terrainType: terrainCell.type,
+      slope: terrainCell.slope,
+      intensity: isIgnition ? scenario.initialFire.initialIntensity : 0,
+      exposure: 0,
+    };
+  });
 
   const activeCells: FireCell[] = scenario.initialFire.ignitionCells.map((position) => ({
     position,

@@ -26,6 +26,11 @@ export interface CellState {
   // without also needing the original Scenario around.
   readonly terrainType: TerrainType;
   readonly slope: number; // 0-1
+  // intensity/exposure make `cells` the single source of truth for fire
+  // propagation: fire.activeCells/burnedAreaHa are always a projection the
+  // Engine recomputes from these, never independent state to keep in sync.
+  readonly intensity: number; // 0-1, meaningful only while BURNING
+  readonly exposure: number; // 0+, accumulated ignition pressure while NORMAL
 }
 
 export interface FireCell {
