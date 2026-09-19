@@ -1,6 +1,7 @@
 import type { Action, SimulationState } from "../types";
 import { propagateTick } from "./fire/propagateTick";
 import { calculateRisk } from "./risk/calculateRisk";
+import { calculateOutcome, missionStatusFor } from "./calculateOutcome";
 import { deployResource } from "./resources/deployResource";
 import { recoverResources } from "./resources/recoverResources";
 
@@ -61,5 +62,9 @@ export function step(state: SimulationState, actions: Action[]): SimulationState
     executedActions: [...current.executedActions, ...executedActions],
   };
 
-  return { ...result, risk: calculateRisk(result) };
+  const withRisk = { ...result, risk: calculateRisk(result) };
+  return {
+    ...withRisk,
+    mission: { ...withRisk.mission, status: missionStatusFor(calculateOutcome(withRisk)) },
+  };
 }

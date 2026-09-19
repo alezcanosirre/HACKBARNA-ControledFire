@@ -7,6 +7,7 @@ import type {
   SimulationState,
 } from "../types";
 import { calculateRisk } from "./risk/calculateRisk";
+import { calculateOutcome, missionStatusFor } from "./calculateOutcome";
 
 function positionKey(position: Position): string {
   return `${position.x},${position.y}`;
@@ -67,8 +68,14 @@ export function createInitialState(scenario: Scenario): SimulationState {
     mission: {
       status: "IN_PROGRESS",
       elapsedMinutes: 0,
+      timeLimitMinutes: scenario.mission.timeLimitMinutes,
+      maxBurnedAreaHa: scenario.mission.maxBurnedAreaHa,
     },
   };
 
-  return { ...state, risk: calculateRisk(state) };
+  const withRisk = { ...state, risk: calculateRisk(state) };
+  return {
+    ...withRisk,
+    mission: { ...withRisk.mission, status: missionStatusFor(calculateOutcome(withRisk)) },
+  };
 }

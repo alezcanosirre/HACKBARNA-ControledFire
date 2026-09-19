@@ -78,6 +78,11 @@ export interface SimulationEvent {
 export interface MissionState {
   readonly status: MissionStatus;
   readonly elapsedMinutes: SimMinutes;
+  // Denormalized from Scenario.mission at createInitialState() time, same
+  // reasoning as CellState's terrainType/slope — lets calculateOutcome()
+  // read only `state`.
+  readonly timeLimitMinutes: SimMinutes;
+  readonly maxBurnedAreaHa: number;
 }
 
 export interface SimulationState {
