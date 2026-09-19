@@ -9,7 +9,7 @@ import { statusFromHotspots } from './map/liveFires';
 import { useLiveHotspots } from './live/useLiveHotspots';
 
 export default function App() {
-  const { hotspots, fetchedAt, error, loading } = useLiveHotspots();
+  const { hotspots, fetchedAt, error, stale, loading } = useLiveHotspots();
   const liveStatus = useMemo(() => statusFromHotspots(hotspots), [hotspots]);
 
   const layers = useMemo(
@@ -53,6 +53,7 @@ export default function App() {
                 · actualizado {new Date(fetchedAt).toLocaleTimeString()}
               </span>
             )}
+            {stale && <span className="ml-2 text-[#FFB020]">· último ciclo con error, mostrando dato anterior</span>}
           </>
         )}
       </div>

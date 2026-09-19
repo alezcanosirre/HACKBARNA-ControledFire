@@ -15,4 +15,7 @@ export interface LiveHotspot {
 export interface HotspotsResponse {
   readonly hotspots: readonly LiveHotspot[];
   readonly fetchedAt: number;
+  // Del último ciclo de refresco del servidor, si falló — los `hotspots` en
+  // ese caso son el último dato bueno conocido, no vacío.
+  readonly error: string | null;
 }
