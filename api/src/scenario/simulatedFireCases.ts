@@ -43,6 +43,9 @@ export interface SimulatedValueAtRisk {
 
 export interface SimulatedFireCase {
   readonly id: string;
+  // Solo el sitio: "Collserola", no "Incendio en Collserola". Es el título de la
+  // tarjeta del incidente, y ahí que arde ya se da por hecho — repetirlo en cada
+  // nombre gasta la línea más visible del panel en decir lo que el panel es.
   readonly name: string; // topónimo legible — nunca se enseña un id en pantalla (UX §5)
   // Mismo grid local {x,y} que api/src/scenario/collserola.ts — sin lat/lng aquí, el
   // front la ancla a un punto real del mapa (ver map/src/engine/anchor.ts SIM_CENTER).
@@ -73,7 +76,7 @@ const HEIGHT = 15;
 export const SIMULATED_FIRE_CASES: readonly SimulatedFireCase[] = [
   {
     id: "sim-collserola",
-    name: "Incendio en Collserola",
+    name: "Collserola",
     mapWidth: WIDTH,
     mapHeight: HEIGHT,
     burnedAreaHa: 34,
@@ -90,7 +93,7 @@ export const SIMULATED_FIRE_CASES: readonly SimulatedFireCase[] = [
       { type: "settlement", name: "Vallvidrera", distanceKm: 2.6, population: 4700, downwind: true },
       { type: "infrastructure", name: "BV-1415", distanceKm: 0.9, downwind: false },
     ],
-    // The one big zone of the three cases (see the comment on sim-sant-andreu below for
+    // The one big zone of the three cases (see the comment on sim-cerdanyola below for
     // the contrast this is deliberately drawn against): one compact front, hottest at
     // its head and cooling outward, not a giant blob — 14 of the grid's 300 cells.
     burningCells: [
@@ -112,7 +115,7 @@ export const SIMULATED_FIRE_CASES: readonly SimulatedFireCase[] = [
   },
   {
     id: "sim-montseny",
-    name: "Incendio en el Montseny",
+    name: "el Montseny",
     mapWidth: WIDTH,
     mapHeight: HEIGHT,
     burnedAreaHa: 18,
@@ -135,8 +138,15 @@ export const SIMULATED_FIRE_CASES: readonly SimulatedFireCase[] = [
     ],
   },
   {
-    id: "sim-sant-andreu",
-    name: "Incendio urbano en Sant Andreu (Barcelona)",
+    id: "sim-cerdanyola",
+    // El nombre lo pone el sitio donde se dibuja, no al revés. Este caso decía "Sant
+    // Andreu (Barcelona)" y salía ardiendo a cinco kilómetros y medio de allí, en la
+    // ladera de Collserola sobre el Vallès — el anclaje del mapa centraba el BLOQUE de
+    // rejilla en el punto nombrado y las celdas de este caso están en una esquina (ver
+    // map/src/engine/anchor.ts). Corregido el anclaje, el topónimo que sale de la tabla
+    // de municipios del propio repositorio (api/src/live/placeName.ts) para este punto
+    // es Cerdanyola del Vallès, y es el que se escribe aquí.
+    name: "Cerdanyola del Vallès",
     mapWidth: WIDTH,
     mapHeight: HEIGHT,
     // Mucho más pequeño que los otros dos a propósito: no es un frente forestal
@@ -156,8 +166,12 @@ export const SIMULATED_FIRE_CASES: readonly SimulatedFireCase[] = [
     // 'moderate' es la aproximación menos falsa para material de construcción/interiores.
     zone: { landCover: "urban", slopeDeg: 2, fuelLoad: "moderate" },
     valuesAtRisk: [
-      { type: "settlement", name: "Bloc Carrer de Sant Adrià 42", distanceKm: 0.1, population: 140, downwind: true },
-      { type: "school", name: "Escola Mare de Déu del Carme", distanceKm: 0.4, population: 310, downwind: true },
+      // Los dos nombres son de Cerdanyola, no de Barcelona: la tarjeta los enseña y el
+      // parte de IA los cita literalmente, así que un topónimo de otra ciudad aquí
+      // reproduce exactamente el error que tenía el nombre del caso. Inventados, como
+      // todo lo demás de este fichero — un supuesto, no un edificio concreto.
+      { type: "settlement", name: "Bloc Carrer de Sant Ramon 42", distanceKm: 0.1, population: 140, downwind: true },
+      { type: "school", name: "Escola Serra de Galliners", distanceKm: 0.4, population: 310, downwind: true },
     ],
     burningCells: [
       { position: { x: 3, y: 3 }, intensity: 0.95 },

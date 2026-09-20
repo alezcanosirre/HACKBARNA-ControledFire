@@ -188,7 +188,7 @@ const BY_TARGET = new Map(ANALYSES.map((a) => [a.target_id, a]));
  * for ACTUAL. What matters is that the two halves agree — the school the actions name is
  * the school the information card lists, which is why the label above was renamed.
  *
- * sim-sant-andreu has no entry: an urban fire needs different actions from a forest one,
+ * sim-cerdanyola has no entry: an urban fire needs different actions from a forest one,
  * and lending it the Collserola ones would put a helicopter over a city block. It shows
  * no actions until someone writes them.
  */

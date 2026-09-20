@@ -22,7 +22,8 @@ export interface IncidentSnapshot {
    * supuesto, no una detección.
    */
   readonly provenance: "satellite-detection" | "exercise-scenario";
-  /** Topónimo legible. null cuando la fuente no tiene ninguno (Deepfire no da nombres). */
+  /** Topónimo legible. Para un incendio real, el municipio más cercano a su centroide
+   * (placeName.ts); para un caso de ejercicio, el que trae escrito. */
   readonly place: string | null;
   /** Primera y última detección de satélite confirmadas para este cluster. */
   readonly firstObservedAt: string; // ISO 8601
@@ -93,7 +94,9 @@ export function buildIncidentSnapshot(fire: LiveFireSummary): IncidentSnapshot {
   return {
     incidentId: fire.id,
     provenance: "satellite-detection",
-    place: null,
+    // Derivado del centroide, no de Deepfire: el municipio más cercano (placeName.ts).
+    // Sigue siendo null si el foco cae lejos de cualquiera.
+    place: fire.place,
     firstObservedAt: fire.firstObserved,
     lastObservedAt: fire.lastObserved,
     centroid: fire.centroid,

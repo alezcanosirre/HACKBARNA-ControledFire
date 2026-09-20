@@ -18,6 +18,10 @@ export interface LiveHotspot {
 export interface LiveFireSummary {
   readonly id: string; // raw cluster_id — what POST /api/live-fires/:id/actions expects
   readonly centroid: { readonly lat: number; readonly lng: number };
+  /** Dónde está esto, en palabras: "Sant Celoni". DERIVADO del centroide contra una
+   * tabla de capitales municipales (api/src/live/placeName.ts), no un dato de Deepfire:
+   * es el municipio más cercano, no la ubicación confirmada. */
+  readonly place: string | null;
   readonly firstObserved: string;
   readonly lastObserved: string;
   readonly cellIds: readonly string[]; // res-8, only this fire's cells
@@ -45,6 +49,9 @@ export interface LiveIgnitionRiskCell {
   readonly risk: number; // 0-1
   readonly lat: number;
   readonly lng: number;
+  /** El municipio más cercano ("near X"), o el topónimo escrito en el caso si es un
+   * ejercicio. DERIVADO, no medido — ver api/src/live/ignitionRisk.ts. */
+  readonly place: string | null;
   readonly horizonHours: number;
   /** El porqué de esta celda, del modelo. Vacío cuando se sirve la heurística. */
   readonly rationale?: string;
@@ -107,5 +114,52 @@ export interface ActionRecommendation {
   readonly complementaryActionIds: readonly string[];
   readonly missingData: readonly string[];
   readonly limitations: readonly string[];
+  readonly requiresHumanReview: true;
+}
+
+// Debe reflejar api/src/live/incidentTriage.ts — misma duplicación a propósito que el
+// resto de este fichero.
+//
+// `not_applicable` no es un fallo: es que hay menos de dos incendios activos y ordenar
+// uno solo no significa nada. El backend lo responde sin llamar al modelo siquiera.
+export type TriageStatus = 'ranked' | 'unavailable' | 'not_applicable';
+
+export interface TriageEntry {
+  readonly incidentId: string;
+  /** 1 = atiéndelo primero. Lo pone el servidor por posición, no el modelo. */
+  readonly rank: number;
+  readonly reason: string;
+}
+
+/** Respuesta de GET /api/live-fires/triage: en qué orden atender los focos activos. Es
+ * una pregunta distinta de la de ActionRecommendation, que mira dentro de UN incidente
+ * y no compara con los demás. */
+export interface IncidentTriage {
+  readonly generatedAt: string;
+  readonly status: TriageStatus;
+  readonly order: readonly TriageEntry[];
+  /** Qué modelo ordenó esto. `null` cuando no ordenó ninguno. */
+  readonly model: string | null;
+}
+
+// Debe reflejar api/src/live/situationBriefing.ts — misma razón de la duplicación que
+// arriba, no hay path compartido entre los dos proyectos TS.
+export type BriefingStatus = 'briefed' | 'quiet' | 'unavailable';
+
+/**
+ * Respuesta de GET /api/live-fires/briefing: el parte del ÁREA COMPLETA, no de un
+ * incidente. Combina todos los incendios activos con el riesgo de ignición del
+ * forecast en un solo texto. `status` dice de dónde sale: "briefed" lo ha escrito el
+ * modelo, "quiet" es el caso sin incendios (no se llama a Nebius siquiera) y
+ * "unavailable" es Nebius caído — nunca un parte a medias disfrazado de parte.
+ */
+export interface SituationBriefing {
+  readonly status: BriefingStatus;
+  readonly generatedAt: string;
+  readonly observedAt: string;
+  readonly activeFires: number;
+  readonly riskZones: number;
+  readonly summary: string;
+  readonly topConcerns: readonly string[];
   readonly requiresHumanReview: true;
 }

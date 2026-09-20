@@ -54,6 +54,13 @@ const SELECTED_WIDTH = 3;
 
 
 /**
+ * The exercise cases as the triage card wants them: an id to open and a name to read.
+ * Computed once at module scope because the cases never change — they are a file in this
+ * repo, not a feed.
+ */
+const SIMULATED_TRIAGE = SIMULATED_FIRES.map((f) => ({ id: f.id, place: f.fire.place }));
+
+/**
  * The burning fill, modulated by the Engine's per-cell intensity (0-1). Only the alpha
  * moves: the hue stays the `active` red of spec.md §4.7, so a hot cell and a dying one
  * still read as the same thing at different strengths.
@@ -127,6 +134,23 @@ export default function App() {
     [riskSource],
   );
   const riskCells = liveRisk.cells;
+
+  /*
+   * Whether PRED's source for the mode that is on has answered yet. `null` is a WAIT,
+   * not an emptiness, and the two get opposite panels on screen: a skeleton while the
+   * cells are still being scored, the "No significant risk" panel once they are and
+   * nothing cleared the threshold. Swapping those two turns good news into a broken feed
+   * and a broken feed into good news.
+   *
+   * On the live side a failed poll is not a wait either — it is a failure, and it stops
+   * the skeleton rather than leaving it spinning forever. The exercise has no equivalent
+   * signal (useSimulatedRisk swallows its error), but its endpoint is our own backend and
+   * it answers with the formula's cells even when the model is unreachable: for it to
+   * fail at all, the proxy has to be down, and then this page has nothing on it anyway.
+   */
+  const riskLoading = simulating
+    ? simulatedRisk === null
+    : live.data === null && live.error === null;
 
   /*
    * Deepfire answers in H3; this map is drawn on quadkeys. The conversion happens right
@@ -439,9 +463,11 @@ export default function App() {
         }
         liveFires={liveFires}
         riskCells={riskCells.length}
+        riskLoading={riskLoading}
         livePrediction={liveRisk.predictionFor}
         riskAnalysis={riskSource?.ignitionAnalysis}
         simulatedFire={simulatedFireById}
+        simulatedFires={SIMULATED_TRIAGE}
         simulating={simulating}
         onToggleSimulation={() => setSimulating((v) => !v)}
       />

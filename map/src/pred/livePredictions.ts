@@ -68,6 +68,10 @@ const HEURISTIC_RATIONALE =
   'this cell, weighted by the worst conditions forecast over the window. The factors ' +
   'below are the inputs, with the weight each one carried.';
 
+/** The fallback name for a cell the backend could not name. */
+const coordinates = (cell: LiveIgnitionRiskCell) =>
+  `${cell.lat.toFixed(3)} N, ${cell.lng.toFixed(3)} E`;
+
 export function buildLiveRisk(source: readonly LiveIgnitionRiskCell[]): LiveRisk {
   const cells: RiskQuadkey[] = [];
   const byQuadkey = new Map<string, LiveIgnitionRiskCell>();
@@ -101,10 +105,10 @@ export function buildLiveRisk(source: readonly LiveIgnitionRiskCell[]): LiveRisk
       // The model's own reading when it scored this cell, the formula's disclaimer when
       // it did not. Never one wearing the other's clothes.
       rationale: cell.rationale?.trim() ? cell.rationale : HEURISTIC_RATIONALE,
-      // The backend has no place names and no gazetteer. Coordinates are not the raw
-      // cell id that UX §5 forbids, and they are at least something an operator can
-      // find on the map. A real toponym is a backend job.
-      place: `${cell.lat.toFixed(3)} N, ${cell.lng.toFixed(3)} E`,
+      // The toponym is a backend job and the backend now does it (ignitionRisk.ts).
+      // Coordinates stay as the fallback for a cell it could not name: they are not the
+      // raw cell id UX §5 forbids, and they are at least something findable on a map.
+      place: cell.place ?? coordinates(cell),
     });
   }
 

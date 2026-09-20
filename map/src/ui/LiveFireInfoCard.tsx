@@ -56,7 +56,19 @@ export function LiveFireInfoCard({ fire }: { fire: LiveFireSummary }) {
   return (
     <Surface padded={false} className="divide-y divide-line">
       <header className="p-4">
-        <h1 className="text-heading font-semibold text-text">Active detection</h1>
+        {/*
+          The place is the title, the same as it is on an exercise case (FireInfoCard).
+          Deepfire gives no name — this is the nearest municipal seat to the centroid
+          (api/src/live/placeName.ts), and the exact coordinates stay in the grid below:
+          the name is for saying it out loud, the numbers are what you act on.
+
+          "Active detection" only survives as the fallback, for a fire too far from any
+          municipality to name — out at sea, in practice. As a permanent heading it spent
+          the most visible line of the panel restating what the panel is.
+        */}
+        <h1 className="text-heading font-semibold text-text">
+          {fire.place ?? 'Active detection'}
+        </h1>
       </header>
 
       {fire.areaHa !== null && (

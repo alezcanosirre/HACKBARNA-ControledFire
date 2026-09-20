@@ -3,6 +3,7 @@ import { cellToLatLng } from "h3-js";
 import { BBOX_RMB } from "./bbox";
 import { fetchIgnitionHistory } from "./ignitionHistory";
 import { fetchWeatherGrid, nearestSample } from "./weather";
+import { nearestPlace } from "./placeName";
 
 /**
  * Riesgo de IGNICIÓN por celda: dónde es probable que empiece un incendio, no hacia
@@ -38,6 +39,17 @@ export interface IgnitionRiskCell {
   readonly drivers: readonly RiskDriver[];
   readonly lat: number;
   readonly lng: number;
+  /**
+   * Cómo se llama esto. DERIVADO, no medido: el municipio más cercano a la celda
+   * (placeName.ts), que por eso viene ya con "near" delante — una celda a tres
+   * kilómetros de un pueblo no está EN ese pueblo. `null` si no se pudo nombrar.
+   *
+   * Existe porque sin él la única forma de decir dónde está una zona era su coordenada,
+   * y una lista de cinco zonas ordenadas por riesgo escrita en grados no se lee: para
+   * comparar dos sitios hay que poder nombrarlos. Un caso de ejercicio trae el suyo
+   * escrito (simulatedRiskCells.ts) y no pasa por la tabla.
+   */
+  readonly place: string | null;
   /** Horas de previsión que cubre este número. Lo que la interfaz enseña como horizonte. */
   readonly horizonHours: number;
   /**
@@ -107,6 +119,7 @@ export async function buildIgnitionRisk(): Promise<IgnitionRiskCell[]> {
       risk,
       lat,
       lng,
+      place: nearestPlace(lat, lng),
       horizonHours: w.horizonHours,
       drivers: [
         {

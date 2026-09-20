@@ -71,7 +71,7 @@ export function ActionsSkeleton({ title = 'Actions' }: { title?: string }) {
         </div>
       </div>
 
-      {/* "Requires human review · HH:MM" */}
+      {/* The clock line: "2:14 pm". */}
       <footer className="p-4">
         <Line w="w-2/5" />
       </footer>

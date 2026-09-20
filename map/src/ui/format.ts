@@ -15,6 +15,23 @@ export function time(iso: string): string {
   return new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * The same instant with am/pm, for the footer of a card that has nothing to say but
+ * when it was read. `time()` above stays 24h for everything that sits next to other
+ * figures — a control room reads a 24h clock — but a bare timestamp on its own line
+ * reads faster with the meridiem, the same call LiveFireInfoCard already makes for a
+ * raw satellite detection.
+ */
+const CLOCK = new Intl.DateTimeFormat(LOCALE, {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
+export function clock(iso: string): string {
+  return CLOCK.format(new Date(iso));
+}
+
 export const LAND_COVER: Record<LandCover, string> = {
   urban: 'built-up',
   wui: 'wildland-urban interface',

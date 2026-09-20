@@ -57,6 +57,11 @@ export function buildSimulatedRiskCells(): IgnitionRiskCell[] {
         risk,
         lat,
         lng,
+        // El topónimo escrito en el caso, no el de la tabla de municipios: un ejercicio
+        // nombra sus zonas ("Garraf — Pla de Querol") con más precisión que el municipio
+        // más cercano, y todas las celdas de una misma zona comparten el nombre — que es
+        // lo que deja agruparlas en una sola fila del top.
+        place: c.place,
         horizonHours,
         drivers: [
           {

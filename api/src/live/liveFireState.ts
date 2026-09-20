@@ -9,6 +9,7 @@ import { buildIgnitionRisk, type IgnitionRiskCell } from "./ignitionRisk";
 import { assessIgnitionRisk } from "./ignitionAssessment";
 import { fetchWeatherGrid, nearestSample, type WeatherSample } from "./weather";
 import { BBOX_RMB } from "./bbox";
+import { nearestPlace } from "./placeName";
 
 /**
  * One real incident, built entirely from data this same poll cycle already fetched in
@@ -20,6 +21,13 @@ import { BBOX_RMB } from "./bbox";
 export interface LiveFireSummary {
   readonly id: string; // raw cluster_id — same id fireActions.ts expects
   readonly centroid: { readonly lat: number; readonly lng: number };
+  /**
+   * Dónde está esto, en palabras: "Sant Celoni". DERIVADO del centroide contra una tabla
+   * de capitales municipales (placeName.ts), no un dato de Deepfire: es el municipio MÁS
+   * CERCANO, no la ubicación confirmada. null si no hay ninguno a menos de 15 km, que en
+   * esta zona solo pasa mar adentro.
+   */
+  readonly place: string | null;
   readonly firstObserved: string;
   readonly lastObserved: string;
   readonly cellIds: readonly string[]; // res-8, only this fire's cells
@@ -156,6 +164,7 @@ export async function buildLiveFireState(): Promise<LiveFireState> {
     return {
       id: cluster.id,
       centroid: { lat: cluster.lat, lng: cluster.lng },
+      place: nearestPlace(cluster.lat, cluster.lng),
       firstObserved: cluster.firstObserved,
       lastObserved: cluster.lastObserved,
       cellIds: [...cellsFor(new Set([cluster.id]))],

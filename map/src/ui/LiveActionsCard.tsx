@@ -1,5 +1,5 @@
 import type { ActionRecommendation } from '../live/types';
-import { time } from './format';
+import { clock } from './format';
 import { SectionLabel, Surface } from './Surface';
 
 /**
@@ -110,10 +110,11 @@ export function LiveActionsCard({ recommendation }: { recommendation: ActionReco
 
       {/* No model attribution here — the contract deliberately never names which
           provider (or whether a fallback) produced this, see actionRecommendation.ts.
-          `requiresHumanReview` is always true on this contract: it is a proposal for a
-          human commander to weigh, never an instruction executed on its own. */}
+          Just the clock: `requiresHumanReview` is still true on the contract, but every
+          card here is a proposal for a human to weigh, and saying so on each one spent a
+          line repeating what the product already is. */}
       <footer className="p-4 text-meta text-muted">
-        Requires human review · {time(recommendation.generatedAt)}
+        {clock(recommendation.generatedAt)}
       </footer>
     </Surface>
   );

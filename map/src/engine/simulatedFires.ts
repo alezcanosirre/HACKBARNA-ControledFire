@@ -28,11 +28,18 @@ import { createAnchor, type Anchor2D } from './anchor';
  * Where each case sits on real ground. The backend cases carry a name and a 20x15 local
  * grid and no geography whatsoever, so putting "Incendio en el Montseny" on the Montseny
  * is a map-side decision, and these three numbers are it.
+ *
+ * Each one is where the FIRE burns, not where its block of grid happens to be centred —
+ * see the `focus` argument below. They were the second thing for a while, and a case
+ * whose cells sat in a corner of its block came out five or six kilometres from its own
+ * name.
  */
 const CENTERS: Record<string, Anchor2D> = {
   'sim-collserola': { latitude: 41.43, longitude: 2.09 },
   'sim-montseny': { latitude: 41.77, longitude: 2.4 },
-  'sim-sant-andreu': { latitude: 41.435, longitude: 2.19 },
+  // The municipal seat itself: this is the one urban case of the three, so it belongs on
+  // built-up ground and not on the wooded slope above the town.
+  'sim-cerdanyola': { latitude: 41.49109, longitude: 2.14079 },
 };
 
 /** Fallback so a case added later still lands somewhere instead of at (0,0) off Africa. */
@@ -121,8 +128,15 @@ function toFire(c: SimulatedFireCase, lat: number, lng: number): Fire {
 function build(): SimulatedFire[] {
   return SIMULATED_FIRE_CASES.map((c) => {
     const center = CENTERS[c.id] ?? DEFAULT_CENTER;
-    const anchor = createAnchor(center, c.mapWidth, c.mapHeight, QUAD_Z);
     const positions = c.burningCells.map((cell) => cell.position);
+    // The cell the named place lands on: the middle of what is burning, rounded to the
+    // lattice. Without it the block's centre is what gets anchored, and the fire drifts
+    // by however far its cells sit from that centre.
+    const focus = {
+      x: Math.round(positions.reduce((sum, p) => sum + p.x, 0) / positions.length),
+      y: Math.round(positions.reduce((sum, p) => sum + p.y, 0) / positions.length),
+    };
+    const anchor = createAnchor(center, c.mapWidth, c.mapHeight, QUAD_Z, focus);
 
     return {
       id: c.id,

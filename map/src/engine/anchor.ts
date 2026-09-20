@@ -65,11 +65,23 @@ export function createAnchor(
   mapWidth: number,
   mapHeight: number,
   z: number,
+  focus?: Position,
 ) {
-  // The centre names the middle of the block, so the origin is half a map north-west of
-  // it. Anchoring by TILE and not by float lat/lng keeps the block snapped to the lattice.
-  const originX = lngToTileX(center.longitude, z) - Math.floor(mapWidth / 2);
-  const originY = latToTileY(center.latitude, z) - Math.floor(mapHeight / 2);
+  /*
+   * `center` names the point on real ground, and `focus` says WHICH local cell lands on
+   * it — the fire's own cells when the caller knows them, the middle of the block
+   * otherwise.
+   *
+   * It takes the fire and not just the block because a case's burning cells are rarely
+   * at the block's centre, and the difference is kilometres: a 20-wide grid at z15 is
+   * ~24 km across, so a fire drawn in the block's corner came out five or six kilometres
+   * from the place the case is named after. That is how "Incendio urbano en Sant Andreu"
+   * ended up burning on the Collserola hillside above Cerdanyola.
+   *
+   * Anchoring by TILE and not by float lat/lng keeps the block snapped to the lattice.
+   */
+  const originX = lngToTileX(center.longitude, z) - (focus?.x ?? Math.floor(mapWidth / 2));
+  const originY = latToTileY(center.latitude, z) - (focus?.y ?? Math.floor(mapHeight / 2));
 
   const cellId = (position: Position): string =>
     tileToQuadkey(originX + position.x, originY + position.y, z);
