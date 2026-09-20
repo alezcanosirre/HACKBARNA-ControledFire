@@ -17,8 +17,6 @@ import { LiveFireInfoCard } from './LiveFireInfoCard';
 import { Legend } from './Legend';
 import { PrioritiesCard } from './PrioritiesCard';
 import { RiskCard, type RiskAnalysis } from './RiskCard';
-import { ForecastSummaryCard } from './ForecastSummaryCard';
-import { ForecastSummarySkeleton } from './ForecastSummarySkeleton';
 import { MENU_STORAGE_KEY, readCollapsed } from './menuStorage';
 import { SideMenu } from './SideMenu';
 import { Surface } from './Surface';
@@ -64,9 +62,10 @@ export function Shell({
   /** How many cells carry risk on PRED. Drives the empty state, nothing else. */
   riskCells?: number;
   /**
-   * The forecast source for the mode that is on has not answered yet. Distinguishes
-   * "still scoring" from "scored, and nothing is above the threshold" — the first gets
-   * the skeleton and the second the good-news panel, and they must never be swapped.
+   * The forecast source for the mode that is on has not answered yet. It holds back the
+   * "No significant risk" panel: a forecast still being scored has not found nothing,
+   * it has not answered, and announcing good news before the answer arrives is the one
+   * thing that panel must never do.
    */
   riskLoading?: boolean;
   /** Detail for a risk cell, from the backend. Nothing else feeds PRED. */
@@ -217,31 +216,6 @@ export function Shell({
   const showTriageCard = !onPred && triageIncidents.length >= 2 && !triageError;
 
   /*
-   * PRED's read of the whole forecast, in the same column and the same position ACTUAL's
-   * situation briefing takes. Two pages, one place for "what am I looking at".
-   *
-   * It rides on the data the map is already painting — no fetch and no model call of its
-   * own, because the text was written when those cells were scored. While that data is in
-   * flight the skeleton holds; it never delays a frame.
-   *
-   * Nothing to forecast, nothing to summarise: on a day with no cell above the threshold
-   * the page already has its "No significant risk" panel, and a second card explaining
-   * the quiet at length is noise.
-   *
-   * And no reading, no card. If the model could not score the forecast there is no
-   * summary to show, and the card goes rather than standing there to say so.
-   */
-  const forecastSummary =
-    riskAnalysis && riskAnalysis.summary !== null
-      ? { ...riskAnalysis, summary: riskAnalysis.summary }
-      : null;
-  // The two halves are deliberately not `riskCells > 0 && ...`: while the forecast is
-  // still loading there are no cells yet, and requiring them would mean the skeleton
-  // never appeared at all.
-  const showForecastSummary =
-    onPred && (riskLoading || (riskCells > 0 && forecastSummary !== null));
-
-  /*
    * The situation briefing for the whole area, under the triage in the overview column.
    * Three decisions live here and not in the hook:
    *
@@ -329,24 +303,16 @@ export function Shell({
         models are still writing. They are two independent fetches — one card arriving
         does not hold the other up, and one failing does not take the other down.
       */}
-      {(showTriageCard || briefingWorthShowing || showForecastSummary) && (
+      {(showTriageCard || briefingWorthShowing) && (
         <div
           inert={open || undefined}
-          /* Clears the legend above it, which is not the same height on both pages:
-             ACTUAL's is one swatch and a label, PRED's is a ramp with two captions and
-             the note about the threshold. `top-32` is the same clearance PRED's
-             "No significant risk" panel has always used. */
-          className={`absolute right-4 bottom-4 z-10 flex w-90 flex-col gap-4 overflow-y-auto transition-[opacity,transform] ${
-            onPred ? 'top-32' : 'top-20'
-          } ${open ? 'pointer-events-none translate-x-8 opacity-0' : 'translate-x-0 opacity-100'}`}
+          /* Clears the legend above it. Both cards in here belong to ACTUAL, whose
+             legend is one swatch and a label — PRED's taller ramp never sits above
+             this column. */
+          className={`absolute top-20 right-4 bottom-4 z-10 flex w-90 flex-col gap-4 overflow-y-auto transition-[opacity,transform] ${
+            open ? 'pointer-events-none translate-x-8 opacity-0' : 'translate-x-0 opacity-100'
+          }`}
         >
-          {showForecastSummary &&
-            (forecastSummary ? (
-              <ForecastSummaryCard analysis={forecastSummary} />
-            ) : (
-              <ForecastSummarySkeleton />
-            ))}
-
           {showTriageCard &&
             (triageLoading || !triage ? (
               <TriageSkeleton />

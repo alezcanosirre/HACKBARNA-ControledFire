@@ -1,4 +1,4 @@
-import { SectionLabel, Surface } from './Surface';
+import { Surface } from './Surface';
 
 /**
  * The situation briefing while the model is still writing it (UX.md §8).
@@ -8,8 +8,8 @@ import { SectionLabel, Surface } from './Surface';
  * broken and one that appears empty and fills in does not. Blocks the size of the final
  * content, never a spinner — nothing on this screen spins.
  *
- * The shape traced here is BriefingCard's and nothing else: header, the summary
- * paragraph, three concern lines behind the same ▸ gutter, and the clock footer.
+ * The shape traced here is BriefingCard's and nothing else: the summary paragraph,
+ * three concern lines behind the same ▸ gutter, and the clock footer.
  */
 
 /** A block the size of a line of text. `w` is a Tailwind width class. */
@@ -30,13 +30,9 @@ function ConcernLine({ w }: { w: string }) {
 export function BriefingSkeleton() {
   return (
     <Surface padded={false} busy className="divide-y divide-line">
-      <header className="flex items-baseline justify-between gap-4 p-4">
-        <SectionLabel>Situation</SectionLabel>
-        {/* The one place this panel is allowed to admit it is thinking. Sits where
-            "AI briefing" will. */}
-        <span className="text-meta text-muted">Reading…</span>
-      </header>
-
+      {/* No header, because the card has none: the blocks start where its text will.
+          Nothing announces the wait any more — grey blocks the shape of a paragraph
+          already read as one being written. */}
       <div className="flex flex-col gap-3 p-4">
         {/* `summary`: 2-4 sentences, always present whatever the status. */}
         <div className="flex flex-col gap-1.5">

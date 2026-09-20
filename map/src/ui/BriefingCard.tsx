@@ -1,6 +1,6 @@
 import type { SituationBriefing } from '../live/types';
 import { clock } from './format';
-import { SectionLabel, Surface } from './Surface';
+import { Surface } from './Surface';
 
 /**
  * The situation briefing for the whole area, in the overview column on the right.
@@ -27,21 +27,18 @@ export function BriefingCard({ briefing }: { briefing: SituationBriefing }) {
 
   return (
     <Surface padded={false} className="divide-y divide-line">
-      <header className="flex items-baseline justify-between gap-4 p-4">
-        <SectionLabel>Situation</SectionLabel>
-        {/*
-          Says which of the three this is, because they are not the same claim. Only the
-          first one was written by a model, and the interface never lets the other two
-          pass for it — same rule RiskCard follows when the heuristic is being served.
-        */}
-        <span className="text-meta text-muted">
-          {status === 'briefed'
-            ? 'AI briefing'
-            : status === 'quiet'
-              ? 'No AI needed'
-              : 'Unavailable'}
-        </span>
-      </header>
+      {/*
+        No header. It used to open with "Situation" on the left and "AI briefing" on the
+        right, and both were restating what the card plainly is — a paragraph about the
+        situation, written by the model, in a product whose panels are all model-written.
+        The card starts with the text itself, which is the only part anyone reads.
+      */}
+      {/*
+        The tag that used to sit up there also said which of the three statuses this was.
+        Nothing is lost: the two that are not a model briefing say so in their own first
+        words — "No active fires right now" and "Could not put together an automatic
+        situation briefing right now" — so the distinction survives where it is read.
+      */}
 
       <div className="flex flex-col gap-3 p-4">
         <p className="text-body text-dim">{summary}</p>
