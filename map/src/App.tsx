@@ -18,9 +18,11 @@ import { useLiveFireState } from './live/useLiveFireState';
 import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { quadkeysForH3Cells } from './live/h3ToQuadkey';
 import { boundsForH3Cells } from './live/h3Bounds';
+import { boundsForQuadkey } from './lib/quadkey';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
 import { buildLiveRisk } from './pred/livePredictions';
+import { useSimulatedRisk } from './pred/useSimulatedRisk';
 import { riskFill, riskStroke } from './pred/risk';
 
 /**
@@ -83,6 +85,9 @@ export default function App() {
   const selectedFire = route.page === 'actual' ? route.selection : null;
   // PRED paints risk instead of fire. Same grid, same camera: only the data changes.
   const onPred = route.page === 'pred';
+  // A PRED selection is a single risk cell, not an incident — but it still deserves the
+  // same "the screen moves to where I clicked" confirmation ACTUAL gives a fire.
+  const selectedRiskCell = onPred ? route.selection : null;
 
 
   /*
@@ -110,9 +115,16 @@ export default function App() {
    * forecast is a problem you can see and fix, an invented one is a problem you find out
    * about on stage.
    */
+  /*
+   * PRED reads whichever source is on: the measured feed, or the exercise scenario while
+   * SIMULATION runs. Never both — the button is the line between what is really out
+   * there and what is being shown, and that line has to hold on this page too.
+   */
+  const simulatedRisk = useSimulatedRisk(simulating);
+  const riskSource = simulating ? simulatedRisk : live.data;
   const liveRisk = useMemo(
-    () => buildLiveRisk(live.data?.ignitionRisk ?? []),
-    [live.data],
+    () => buildLiveRisk(riskSource?.ignitionRisk ?? []),
+    [riskSource],
   );
   const riskCells = liveRisk.cells;
 
@@ -188,13 +200,15 @@ export default function App() {
    * camera has to move just the same.
    */
   useEffect(() => {
+    const focusKey = selectedFire ?? selectedRiskCell;
     const leaving = previousFire.current;
-    previousFire.current = selectedFire;
+    previousFire.current = focusKey;
 
     /*
-     * Two kinds of fire can be selected and only one of them carries its own bounds.
-     * The simulated one knows its grid (engine/anchor.ts); a real one arrives as a list
-     * of H3 cells, so its extent is derived from them here.
+     * Three things can be selected and only some of them carry their own bounds. The
+     * simulated one knows its grid (engine/anchor.ts); a real fire arrives as a list of
+     * H3 cells, so its extent is derived from them here; a PRED risk cell is a single H3
+     * cell, same derivation with a one-element list.
      *
      * The live list is read through a ref on purpose. As a dependency it would re-run
      * this effect on every poll — every 15 s — and fly the camera back to the fire,
@@ -203,7 +217,10 @@ export default function App() {
     const liveFire = liveFiresRef.current.find((f) => f.id === selectedFire);
     const target =
       simulatedFireById(selectedFire)?.bounds ??
-      (liveFire ? boundsForH3Cells(liveFire.cellIds) : null);
+      (liveFire ? boundsForH3Cells(liveFire.cellIds) : null) ??
+      // A PRED selection is a quadkey (pred/livePredictions.ts), not an H3 cell — see
+      // boundsForQuadkey's own comment for why it cannot reuse boundsForH3Cells.
+      (selectedRiskCell ? boundsForQuadkey(selectedRiskCell) : null);
     if (!target) {
       // Arriving with no selection moves nothing: VIEW_RMB is where it starts.
       if (!leaving) return;
@@ -219,9 +236,14 @@ export default function App() {
     // deck.gl has not measured yet: framing with 0x0 would give a meaningless zoom.
     if (!width || !height) return;
 
-    // Free width between the two columns. The width/3 floor is for narrow windows,
-    // where the cards eat almost everything and the corridor would come out negative.
-    const corridor = Math.max(width - 2 * (PANEL_W + 2 * PANEL_MARGIN), width / 3);
+    // Free width between the columns. A fire on ACTUAL fills both (info + actions); a
+    // risk cell on PRED only ever fills the left one (Shell.tsx renders nothing in the
+    // right column for a prediction) — reserving space for a second, empty panel there
+    // starved the fit of width it actually had, zooming out further than the target
+    // warranted. The width/3 floor is for narrow windows, where the cards eat almost
+    // everything and the corridor would come out negative.
+    const panels = selectedRiskCell ? 1 : 2;
+    const corridor = Math.max(width - panels * (PANEL_W + 2 * PANEL_MARGIN), width / 3);
 
     // Functional update: the effect does not depend on viewState, so its closure would
     // be carrying a stale one.
@@ -242,7 +264,7 @@ export default function App() {
       } as MapViewState;
     });
 
-  }, [selectedFire, measured, hasLiveTarget]);
+  }, [selectedFire, selectedRiskCell, measured, hasLiveTarget]);
 
   const layers = useMemo(
     () => [
@@ -418,6 +440,7 @@ export default function App() {
         liveFires={liveFires}
         riskCells={riskCells.length}
         livePrediction={liveRisk.predictionFor}
+        riskAnalysis={riskSource?.ignitionAnalysis}
         simulatedFire={simulatedFireById}
         simulating={simulating}
         onToggleSimulation={() => setSimulating((v) => !v)}

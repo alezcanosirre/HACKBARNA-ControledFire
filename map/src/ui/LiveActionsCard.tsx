@@ -10,11 +10,11 @@ import { SectionLabel, Surface } from './Surface';
  * text of their own. Same duplication-on-purpose as the types in live/types.ts.
  */
 const ACTION_TITLES: Record<string, string> = {
-  A01: 'Verificar el aviso',
-  A02: 'Realizar reconocimiento y evaluar seguridad',
-  A03: 'Evaluar exposición de personas e infraestructuras',
-  A04: 'Establecer el plan de intervención y los recursos',
-  A05: 'Mantener seguimiento y reevaluar el plan',
+  A01: 'Verify the alert',
+  A02: 'Reconnoitre and assess safety',
+  A03: 'Assess exposure of people and infrastructure',
+  A04: 'Set the intervention plan and resources',
+  A05: 'Keep monitoring and re-assess the plan',
 };
 
 /**

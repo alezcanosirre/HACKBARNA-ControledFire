@@ -85,7 +85,19 @@ export const collserolaScenario: Scenario = {
       },
     ],
   },
-  initialFire: { ignitionCells: [{ x: 6, y: 10 }], initialIntensity: 0.6 },
+  // One zone, several adjacent cells already burning — a fire caught after it has
+  // taken hold of a patch of ground, not a single spark. Not huge either: five cells
+  // is still one compact front, not a blaze that already covers half the map.
+  initialFire: {
+    ignitionCells: [
+      { x: 6, y: 10 },
+      { x: 7, y: 10 },
+      { x: 6, y: 11 },
+      { x: 5, y: 10 },
+      { x: 6, y: 9 },
+    ],
+    initialIntensity: 0.6,
+  },
   // Hot, dry, windy — wind FROM the NW blows the fire SE, towards Vallvidrera.
   initialEnvironment: { temperature: 32, humidity: 0.15, wind: { speed: 25, direction: 315 } },
   // arrivalMinutes: ground units are close and fast (5min); the

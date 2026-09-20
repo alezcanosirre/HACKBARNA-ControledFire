@@ -97,7 +97,7 @@ describe("getActionRecommendation — detección sin confirmación de campo", ()
     expect(result.mode).toBe("ACTUAL");
     expect(result.requiresHumanReview).toBe(true);
     expect(result.recommendedAction?.id).toBe("A01");
-    expect(result.recommendedAction?.title).toBe("Verificar el aviso"); // del catálogo, no del modelo
+    expect(result.recommendedAction?.title).toBe("Verify the alert"); // del catálogo, no del modelo
     expect(result.complementaryActionIds).toEqual(["A02"]);
   });
 
@@ -136,7 +136,7 @@ describe("getActionRecommendation — detección sin confirmación de campo", ()
 
     expect(result.status).toBe("recommended");
     expect(result.recommendedAction?.id).toBe("A01");
-    expect(result.recommendedAction?.title).toBe("Verificar el aviso");
+    expect(result.recommendedAction?.title).toBe("Verify the alert");
   });
 });
 
@@ -339,7 +339,7 @@ describe("validateModelOutput — contrato en aislado", () => {
       limitations: [],
     });
     expect(parsed.status).toBe("recommended");
-    expect(parsed.recommendedAction?.title).toBe("Establecer el plan de intervención y los recursos");
+    expect(parsed.recommendedAction?.title).toBe("Set the intervention plan and resources");
   });
 
   it("rechaza un status fuera del enum", () => {

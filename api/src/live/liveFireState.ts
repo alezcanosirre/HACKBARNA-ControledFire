@@ -6,6 +6,7 @@ import { cellsForMultiPolygon } from "./h3FromGeometry";
 import { ensureRiskSimulation, getCachedRiskCells, getCachedWind, type FireSpreadWind } from "./riskCache";
 import { RES_ACTIVE } from "./constants";
 import { buildIgnitionRisk, type IgnitionRiskCell } from "./ignitionRisk";
+import { assessIgnitionRisk } from "./ignitionAssessment";
 import { fetchWeatherGrid, nearestSample, type WeatherSample } from "./weather";
 import { BBOX_RMB } from "./bbox";
 
@@ -54,21 +55,40 @@ export interface LiveFireState {
    * que `riskCellIds`, que es hacia dónde iría un fuego que YA arde.
    */
   readonly ignitionRisk: readonly IgnitionRiskCell[];
+  /**
+   * Lo que el modelo lee del área en conjunto, y con qué modelo. `summary` en null
+   * significa que se está sirviendo la heurística porque la IA no estaba disponible — la
+   * interfaz lo dice, no lo disimula.
+   */
+  readonly ignitionAnalysis: {
+    readonly summary: string | null;
+    readonly model: string | null;
+    readonly generatedAt: string;
+  };
   readonly hotspots: readonly LiveHotspot[]; // detalle/respaldo de cada detección
   readonly fetchedAt: number;
 }
 
 export async function buildLiveFireState(): Promise<LiveFireState> {
-  const [clusters, perimeters, allHotspots, ignitionRisk] = await Promise.all([
+  const [clusters, perimeters, allHotspots, ignition] = await Promise.all([
     fetchActiveClustersInRmb(),
     fetchActivePerimetersInRmb(),
     fetchLiveHotspotsInRmb(),
     // Que falle el riesgo de ignición no puede tumbar el feed de incendios: son dos
     // preguntas distintas y la de "qué arde ahora" es la que no puede faltar.
-    buildIgnitionRisk().catch((err) => {
-      console.error("[live] riesgo de ignición falló:", err instanceof Error ? err.message : err);
-      return [] as IgnitionRiskCell[];
-    }),
+    // Las celdas se miden aquí y las puntúa el modelo; si el modelo falla, se sirven
+    // las de la heurística. Que falle el riesgo no puede tumbar el feed de qué arde.
+    buildIgnitionRisk()
+      .then((cells) => assessIgnitionRisk(cells))
+      .catch((err) => {
+        console.error("[live] riesgo de ignición falló:", err instanceof Error ? err.message : err);
+        return {
+          cells: [] as IgnitionRiskCell[],
+          summary: null,
+          model: null,
+          generatedAt: new Date().toISOString(),
+        };
+      }),
   ]);
 
   const now = Date.now();
@@ -154,7 +174,12 @@ export async function buildLiveFireState(): Promise<LiveFireState> {
     fires,
     activeCellIds: [...activeCells],
     riskCellIds: [...riskCells],
-    ignitionRisk,
+    ignitionRisk: ignition.cells,
+    ignitionAnalysis: {
+      summary: ignition.summary,
+      model: ignition.model,
+      generatedAt: ignition.generatedAt,
+    },
     hotspots: allHotspots,
     fetchedAt: now,
   };

@@ -12,7 +12,7 @@ import { LiveActionsCard } from './LiveActionsCard';
 import { LiveFireInfoCard } from './LiveFireInfoCard';
 import { Legend } from './Legend';
 import { PrioritiesCard } from './PrioritiesCard';
-import { RiskCard } from './RiskCard';
+import { RiskCard, type RiskAnalysis } from './RiskCard';
 import { MENU_STORAGE_KEY, readCollapsed } from './menuStorage';
 import { SideMenu } from './SideMenu';
 import { Surface } from './Surface';
@@ -41,6 +41,7 @@ export function Shell({
   liveFires,
   riskCells = 0,
   livePrediction,
+  riskAnalysis,
   simulatedFire,
 }: {
   route: Route;
@@ -52,8 +53,10 @@ export function Shell({
   liveFires?: readonly LiveFireSummary[];
   /** How many cells carry risk on PRED. Drives the empty state, nothing else. */
   riskCells?: number;
-  /** Detail for a risk cell, from the backend heuristic. Nothing else feeds PRED. */
+  /** Detail for a risk cell, from the backend. Nothing else feeds PRED. */
   livePrediction?: (cellId: string | null) => Prediction | null;
+  /** The model's read of the whole risk area, shown under the cell's detail. */
+  riskAnalysis?: RiskAnalysis;
   /** A SIMULATION case by id. Static data, so it is a plain lookup, not a hook. */
   simulatedFire?: (id: string | null) => { fire: Fire } | null;
 }) {
@@ -179,10 +182,15 @@ export function Shell({
       {/*
         Never blank. A forecast with nothing above the threshold is good news and has to
         say so — an empty screen reads as a broken feed, which is the opposite message
-        (UX.md §4).
+        (UX.md §4). Sits right under the legend, same column, same side.
       */}
       {onPred && !open && riskCells === 0 && (
-        <Surface as="aside" className="absolute bottom-4 left-24 z-10">
+        <Surface
+          as="aside"
+          className={`absolute top-32 right-4 z-10 transition-[opacity,transform] ${
+            open ? 'pointer-events-none translate-x-8 opacity-0' : 'translate-x-0 opacity-100'
+          }`}
+        >
           <p className="text-label text-text">No significant risk</p>
           <p className="mt-1 text-meta text-muted">
             Nothing above 25% in the next 24 h
@@ -212,7 +220,7 @@ export function Shell({
             {shownIsLive ? (
               <LiveFireInfoCard fire={shown as LiveFireSummary} />
             ) : shownIsRisk ? (
-              <RiskCard prediction={shown as Prediction} />
+              <RiskCard prediction={shown as Prediction} analysis={riskAnalysis} />
             ) : (
               shown && <FireInfoCard fire={shown as Fire} />
             )}
@@ -231,14 +239,6 @@ export function Shell({
               later be, which reads as an error message rather than as work in progress.
             */}
             {wantsRecommendation && liveLoading && <ActionsSkeleton />}
-            {shownIsRisk && (
-              <Surface as="aside">
-                <p className="text-label text-text">No preventive actions yet</p>
-                <p className="mt-1 text-meta text-muted">
-                  The model writes them for active fires. Forecast cells are next.
-                </p>
-              </Surface>
-            )}
             {wantsRecommendation && liveError && (
               <p className="p-4 text-meta text-muted">Could not get AI actions: {liveError}</p>
             )}

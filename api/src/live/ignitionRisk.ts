@@ -2,7 +2,7 @@ import { cellToLatLng } from "h3-js";
 
 import { BBOX_RMB } from "./bbox";
 import { fetchIgnitionHistory } from "./ignitionHistory";
-import { fetchWeatherGrid, nearestSample, type WeatherSample } from "./weather";
+import { fetchWeatherGrid, nearestSample } from "./weather";
 
 /**
  * Riesgo de IGNICIÓN por celda: dónde es probable que empiece un incendio, no hacia
@@ -40,17 +40,33 @@ export interface IgnitionRiskCell {
   readonly lng: number;
   /** Horas de previsión que cubre este número. Lo que la interfaz enseña como horizonte. */
   readonly horizonHours: number;
+  /**
+   * El porqué de esta celda, escrito por el modelo (ignitionAssessment.ts). Vacío cuando
+   * se está sirviendo la heurística: no se inventa una frase para tapar el hueco, la
+   * interfaz dice de dónde viene el número.
+   */
+  readonly rationale?: string;
 }
 
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+export const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 /** Por debajo de esto no se pinta nada (spec.md §4.7). */
-const RISK_FLOOR = 0.25;
+export const RISK_FLOOR = 0.25;
 
 /** Pesos de la parte meteorológica. Suman 1; son un punto de partida, no una calibración. */
-const WEIGHTS = { dryness: 0.45, heat: 0.3, wind: 0.25 };
+export const WEIGHTS = { dryness: 0.45, heat: 0.3, wind: 0.25 };
 
-function weatherTerms(w: WeatherSample) {
+/**
+ * Los tres términos meteorológicos, exportados porque un escenario de ejercicio los
+ * calcula igual (simulatedRiskCells.ts). Misma fórmula para el dato real y para el
+ * supuesto: si la base de comparación fuera distinta, el modelo estaría puntuando dos
+ * escalas y creyendo que es una.
+ */
+export function weatherTerms(w: {
+  readonly temperatureC: number;
+  readonly humidityPct: number;
+  readonly windSpeedKmh: number;
+}) {
   return {
     // 60% de humedad no seca nada; 15% es combustible listo.
     dryness: clamp01((60 - w.humidityPct) / 45),

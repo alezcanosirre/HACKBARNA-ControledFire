@@ -26,50 +26,49 @@ export interface CatalogAction {
 export const ACTION_CATALOG: readonly CatalogAction[] = [
   {
     id: "A01",
-    title: "Verificar el aviso",
+    title: "Verify the alert",
     description:
-      "Contrastar coordenadas, fecha y hora con la central de emergencias y observaciones " +
-      "independientes; comprobar si el incidente ya está identificado.",
-    whenToPropose: "Detección sin confirmación operativa.",
+      "Cross-check coordinates, date and time against the emergency control room and " +
+      "independent observations; check whether the incident is already identified.",
+    whenToPropose: "A detection with no operational confirmation.",
   },
   {
     id: "A02",
-    title: "Realizar reconocimiento y evaluar seguridad",
+    title: "Reconnoitre and assess safety",
     description:
-      "Mediante los medios que determine el mando, confirmar extensión, combustible, " +
-      "comportamiento del fuego, accesos y condiciones de seguridad del personal.",
-    whenToPropose: "Falta información de campo para planificar la intervención.",
+      "Using whatever means the commander decides, confirm extent, fuel, fire behaviour, " +
+      "access routes and the safety conditions for personnel.",
+    whenToPropose: "Field information is missing to plan the intervention.",
   },
   {
     id: "A03",
-    title: "Evaluar exposición de personas e infraestructuras",
+    title: "Assess exposure of people and infrastructure",
     description:
-      "Comprobar qué personas, viviendas, carreteras o instalaciones podrían estar " +
-      "afectadas y trasladar al mando las necesidades de protección.",
-    whenToPropose: "Exposición confirmada o desconocida.",
+      "Establish which people, homes, roads or facilities could be affected and pass the " +
+      "protection needs to the commander.",
+    whenToPropose: "Exposure is confirmed or unknown.",
     limitation:
-      "No ordenar evacuación ni confinamiento; esas decisiones corresponden a la autoridad competente.",
+      "Do not order evacuation or shelter-in-place; those decisions belong to the competent authority.",
   },
   {
     id: "A04",
-    title: "Establecer el plan de intervención y los recursos",
+    title: "Set the intervention plan and resources",
     description:
-      "El mando define objetivos, estrategia de contención/extinción y medios necesarios " +
-      "considerando reconocimiento, meteorología verificada, terreno y seguridad.",
-    whenToPropose: "Existe información suficiente para planificar la intervención.",
+      "The commander sets objectives, a containment or suppression strategy and the means " +
+      "required, weighing reconnaissance, verified weather, terrain and safety.",
+    whenToPropose: "There is enough information to plan the intervention.",
     limitation:
-      "La IA no debe inventar recursos disponibles ni prescribir tácticas, despliegues " +
-      "o cantidades de medios con información insuficiente.",
+      "The AI must not invent available resources, nor prescribe tactics, deployments or " +
+      "quantities of means on insufficient information.",
   },
   {
     id: "A05",
-    title: "Mantener seguimiento y reevaluar el plan",
+    title: "Keep monitoring and re-assess the plan",
     description:
-      "Comparar observaciones sucesivas y partes de campo, comunicar cambios y revisar " +
-      "las decisiones. Tras la extinción confirmada, mantener la vigilancia que determine " +
-      "el mando.",
-    whenToPropose: "Durante la intervención o el seguimiento de un incidente confirmado.",
-    limitation: "La ausencia de detecciones satelitales no demuestra extinción.",
+      "Compare successive observations and field reports, communicate changes and revisit " +
+      "the decisions. Once extinction is confirmed, keep whatever watch the commander sets.",
+    whenToPropose: "During the intervention, or while monitoring a confirmed incident.",
+    limitation: "The absence of satellite detections does not prove extinction.",
   },
 ];
 

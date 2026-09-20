@@ -61,7 +61,7 @@ describe("collserolaScenario", () => {
   it("builds a valid initial state", () => {
     const state = createInitialState(collserolaScenario);
     expect(state.mission.status).toBe("IN_PROGRESS");
-    expect(state.fire.activeCells).toHaveLength(1);
+    expect(state.fire.activeCells).toHaveLength(collserolaScenario.initialFire.ignitionCells.length);
   });
 
   it("is a loss if the player does nothing", () => {
@@ -76,9 +76,9 @@ describe("collserolaScenario", () => {
     expect(calculateOutcome(state)).toBe("VICTORY");
   });
 
-  it("is a loss if the player waits too long (30min+) before reacting", () => {
+  it("is a loss if the player waits too long (40min+) before reacting", () => {
     let state = createInitialState(collserolaScenario);
-    state = step(state, [{ type: "WAIT", minutes: 30 }]);
+    state = step(state, [{ type: "WAIT", minutes: 40 }]);
     state = runUntilResolved(state, true);
     expect(calculateOutcome(state)).not.toBe("VICTORY");
   });

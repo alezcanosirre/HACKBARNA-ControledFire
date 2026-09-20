@@ -56,15 +56,17 @@ export interface LiveRisk {
 }
 
 /**
- * The card's "Analysis" says what this number IS, and it says it plainly: a heuristic
- * over measured history and current weather, not a validated forecast. Writing prose
- * here that sounded like a meteorologist would be dressing a formula up as expertise —
- * the drivers below it already show the method, which is the part worth defending.
+ * What goes in the card's "Analysis" when the model did not score this cell.
+ *
+ * It says plainly what the number then is: a hand-weighted formula over measured inputs,
+ * not a forecast anyone validated. Writing prose here that sounded like a meteorologist
+ * would be dressing a formula up as expertise — the drivers below already show the
+ * method, which is the part worth defending.
  */
-const RATIONALE =
-  'Heuristic, not a validated forecast: measured ignition history for this cell, ' +
-  'weighted by the worst conditions forecast over the window. The factors below are ' +
-  'the inputs, with the weight each one carried.';
+const HEURISTIC_RATIONALE =
+  'Scored by a hand-weighted formula, not by the model: measured ignition history for ' +
+  'this cell, weighted by the worst conditions forecast over the window. The factors ' +
+  'below are the inputs, with the weight each one carried.';
 
 export function buildLiveRisk(source: readonly LiveIgnitionRiskCell[]): LiveRisk {
   const cells: RiskQuadkey[] = [];
@@ -96,7 +98,9 @@ export function buildLiveRisk(source: readonly LiveIgnitionRiskCell[]): LiveRisk
       risk_score: bestRisk.get(cell_id)!,
       horizon_h: cell.horizonHours,
       drivers: cell.drivers.map((d) => ({ ...d })),
-      rationale: RATIONALE,
+      // The model's own reading when it scored this cell, the formula's disclaimer when
+      // it did not. Never one wearing the other's clothes.
+      rationale: cell.rationale?.trim() ? cell.rationale : HEURISTIC_RATIONALE,
       // The backend has no place names and no gazetteer. Coordinates are not the raw
       // cell id that UX §5 forbids, and they are at least something an operator can
       // find on the map. A real toponym is a backend job.

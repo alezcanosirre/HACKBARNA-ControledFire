@@ -10,6 +10,7 @@ import {
 } from "./actionRecommendation";
 import { buildSimulatedSnapshot } from "./incidentSnapshot";
 import { simulatedFireCaseById } from "../scenario/simulatedFireCases";
+import { getSimulatedRiskAssessment } from "./simulatedRisk";
 
 const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
 // Satélite, no push: clusters/perímetros/hotspots no llegan más rápido que
@@ -48,6 +49,7 @@ async function pollOnce(): Promise<void> {
       activeCellIds: [],
       riskCellIds: [],
       ignitionRisk: [],
+      ignitionAnalysis: { summary: null, model: null, generatedAt: new Date().toISOString() },
       hotspots: [],
       fetchedAt: Date.now(),
     });
@@ -136,6 +138,34 @@ const server = createServer((req, res) => {
       .catch((err) => {
         const message = err instanceof Error ? err.message : "unknown error";
         console.error(`[live] fallo generando recomendación para el caso ${caseId}:`, message);
+        sendJson(res, 500, { error: "unexpected error" });
+      });
+    return;
+  }
+
+  /*
+   * GET /api/simulated-risk — el PRED del modo SIMULACIÓN.
+   *
+   * Con la simulación encendida el sondeo a Deepfire se apaga, así que PRED se quedaba
+   * sin nada. Estas celdas son inventadas, pero las puntúa el mismo modelo con el mismo
+   * prompt que las medidas: el escenario cambia de dónde salen los datos, no quién los
+   * juzga. GET y no POST porque no crea nada y el escenario es el mismo siempre.
+   */
+  if (req.method === "GET" && url.pathname === "/api/simulated-risk") {
+    getSimulatedRiskAssessment()
+      .then((assessment) =>
+        sendJson(res, 200, {
+          ignitionRisk: assessment.cells,
+          ignitionAnalysis: {
+            summary: assessment.summary,
+            model: assessment.model,
+            generatedAt: assessment.generatedAt,
+          },
+        }),
+      )
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "unknown error";
+        console.error("[live] fallo generando el riesgo simulado:", message);
         sendJson(res, 500, { error: "unexpected error" });
       });
     return;

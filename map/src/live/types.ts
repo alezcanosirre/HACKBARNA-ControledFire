@@ -46,6 +46,8 @@ export interface LiveIgnitionRiskCell {
   readonly lat: number;
   readonly lng: number;
   readonly horizonHours: number;
+  /** El porqué de esta celda, del modelo. Vacío cuando se sirve la heurística. */
+  readonly rationale?: string;
   readonly drivers: readonly {
     readonly factor: string;
     readonly contribution: number;
@@ -59,6 +61,12 @@ export interface LiveFireState {
   readonly riskCellIds: readonly string[]; // res-8, propagación de un foco activo
   /** Riesgo de IGNICIÓN (PRED): dónde puede empezar un fuego, no hacia dónde iría uno. */
   readonly ignitionRisk: readonly LiveIgnitionRiskCell[];
+  /** La lectura del área en conjunto. `summary` en null = se está sirviendo la heurística. */
+  readonly ignitionAnalysis: {
+    readonly summary: string | null;
+    readonly model: string | null;
+    readonly generatedAt: string;
+  };
   readonly hotspots: readonly LiveHotspot[];
   readonly fetchedAt: number;
   // Del último ciclo de refresco del servidor, si falló — el resto de

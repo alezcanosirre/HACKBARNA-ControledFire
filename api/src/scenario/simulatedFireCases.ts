@@ -90,13 +90,24 @@ export const SIMULATED_FIRE_CASES: readonly SimulatedFireCase[] = [
       { type: "settlement", name: "Vallvidrera", distanceKm: 2.6, population: 4700, downwind: true },
       { type: "infrastructure", name: "BV-1415", distanceKm: 0.9, downwind: false },
     ],
+    // The one big zone of the three cases (see the comment on sim-sant-andreu below for
+    // the contrast this is deliberately drawn against): one compact front, hottest at
+    // its head and cooling outward, not a giant blob — 14 of the grid's 300 cells.
     burningCells: [
       { position: { x: 6, y: 10 }, intensity: 0.9 },
-      { position: { x: 7, y: 10 }, intensity: 0.85 },
-      { position: { x: 7, y: 9 }, intensity: 0.7 },
-      { position: { x: 8, y: 9 }, intensity: 0.6 },
-      { position: { x: 6, y: 11 }, intensity: 0.5 },
-      { position: { x: 5, y: 10 }, intensity: 0.4 },
+      { position: { x: 7, y: 10 }, intensity: 0.9 },
+      { position: { x: 7, y: 9 }, intensity: 0.8 },
+      { position: { x: 8, y: 9 }, intensity: 0.7 },
+      { position: { x: 8, y: 10 }, intensity: 0.65 },
+      { position: { x: 6, y: 9 }, intensity: 0.6 },
+      { position: { x: 6, y: 11 }, intensity: 0.6 },
+      { position: { x: 5, y: 10 }, intensity: 0.55 },
+      { position: { x: 7, y: 11 }, intensity: 0.5 },
+      { position: { x: 5, y: 11 }, intensity: 0.45 },
+      { position: { x: 9, y: 9 }, intensity: 0.4 },
+      { position: { x: 8, y: 11 }, intensity: 0.4 },
+      { position: { x: 4, y: 10 }, intensity: 0.35 },
+      { position: { x: 6, y: 12 }, intensity: 0.35 },
     ],
   },
   {

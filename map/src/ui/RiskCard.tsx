@@ -1,5 +1,5 @@
 import type { Prediction } from '../mocks/types';
-import { int } from './format';
+import { int, time } from './format';
 import { SectionLabel, Surface } from './Surface';
 
 const FACTOR: Record<string, string> = {
@@ -25,7 +25,24 @@ const factorLabel = (factor: string) =>
  * repeating the palette here devalues it (UX.md §7). And nothing beats on this page:
  * the pulse belongs to real fire, and a risk is not an emergency.
  */
-export function RiskCard({ prediction }: { prediction: Prediction }) {
+export interface RiskAnalysis {
+  readonly summary: string | null;
+  readonly model: string | null;
+  readonly generatedAt: string;
+}
+
+export function RiskCard({
+  prediction,
+  analysis,
+}: {
+  prediction: Prediction;
+  /**
+   * The model's read of the whole area, under the per-cell detail. It sits at the bottom
+   * because it is context, not the answer: the operator came for this cell's number and
+   * gets the area's picture once they have it.
+   */
+  analysis?: RiskAnalysis;
+}) {
   const percent = Math.round(prediction.risk_score * 100);
   // Heaviest first: the bar chart is a ranking, so it should read as one.
   const drivers = [...prediction.drivers].sort((a, b) => b.contribution - a.contribution);
@@ -81,6 +98,23 @@ export function RiskCard({ prediction }: { prediction: Prediction }) {
             ))}
           </ul>
         </section>
+
+        {/*
+          The area, not the cell. Only rendered when the model actually wrote one — with
+          the heuristic in use there is no analysis, and inventing a paragraph to fill
+          the space would be the one thing this card must not do.
+        */}
+        {analysis?.summary && (
+          <section className="p-4">
+            <SectionLabel>Area analysis</SectionLabel>
+            <p className="mt-2 text-body text-dim">{analysis.summary}</p>
+            {analysis.model && (
+              <p className="mt-2 text-meta text-muted">
+                {analysis.model} · {time(analysis.generatedAt)}
+              </p>
+            )}
+          </section>
+        )}
       </Surface>
     </div>
   );
