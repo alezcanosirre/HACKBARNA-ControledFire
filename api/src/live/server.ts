@@ -11,6 +11,7 @@ import {
 import { buildSimulatedSnapshot } from "./incidentSnapshot";
 import { simulatedFireCaseById } from "../scenario/simulatedFireCases";
 import { getSimulatedRiskAssessment } from "./simulatedRisk";
+import { serveFrontend } from "./staticSite";
 
 // `PORT` first: most hosts (Render, Railway, Fly) inject it and expect the app to
 // listen there — LIVE_SERVER_PORT stays as the local-dev override.
@@ -172,6 +173,10 @@ const server = createServer((req, res) => {
       });
     return;
   }
+
+  // Only reached once every /api/* route above has missed, so an unmatched API path
+  // still gets a JSON 404 instead of silently falling through to the SPA's index.html.
+  if (!url.pathname.startsWith("/api/") && serveFrontend(req, res)) return;
 
   sendJson(res, 404, { error: "not found" });
 });
