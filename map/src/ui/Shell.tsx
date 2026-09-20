@@ -115,19 +115,32 @@ export function Shell({
   // the shapes discriminate themselves without carrying a separate kind flag.
   const shownIsLive = shown !== null && 'cellIds' in shown;
   const shownIsRisk = shown !== null && 'risk_score' in shown;
-  // Real detections get their own recommendation shape (ActionRecommendation, at most
-  // one grounded priority action) — never squeezed into the mock AIAnalysis contract
-  // that PRED and the simulated fires below still use unchanged.
-  const { analysis: liveRecommendation, loading: liveLoading, error: liveError } = useFireActions(
-    shownIsLive ? (shown as LiveFireSummary) : null,
-  );
+  // A SIMULATION case. It shares the mock `Fire` shape with the old demo fires, so the
+  // id prefix is what tells them apart — only a case has a route on the backend.
+  const shownIsSimulated =
+    shown !== null && !shownIsLive && !shownIsRisk && shown.id.startsWith('sim-');
+
   /*
-   * PRED has no actions yet, and it shows none rather than mocked ones — the risk-cell
-   * placeholder above covers it. Live fires render their own recommendation via
-   * LiveActionsCard above, using `liveRecommendation` directly, so `analysis` here is
-   * only ever for the SIMULATION mock fires (analysisFor).
+   * Both a real detection and an exercise case ask the backend for a recommendation, and
+   * the case is the one that answers well: it carries terrain, spread and values at risk,
+   * which is exactly what the model keeps listing as missing for a real detection. Same
+   * prompt and same cache on the other side; the model tells them apart by `provenance`.
    */
-  const analysis = shown && !shownIsLive && !shownIsRisk ? analysisFor(shown.id) : null;
+  const { analysis: liveRecommendation, loading: liveLoading, error: liveError } = useFireActions(
+    shownIsLive
+      ? { kind: 'live', id: (shown as LiveFireSummary).id }
+      : shownIsSimulated
+        ? { kind: 'simulated', id: (shown as Fire).id }
+        : null,
+  );
+  const wantsRecommendation = shownIsLive || shownIsSimulated;
+
+  /*
+   * PRED has no actions yet, and it shows none rather than mocked ones. What is left on
+   * `analysis` are the old mock demo fires, which nothing selects any more now that
+   * SIMULATION reads the cases — it stays for the few of them still reachable by URL.
+   */
+  const analysis = shown && !wantsRecommendation && !shownIsRisk ? analysisFor(shown.id) : null;
 
   // Esc deselects: it is the keyboard shortcut for the back button (UX.md §5 and §11).
   useEffect(() => {
@@ -217,7 +230,7 @@ export function Shell({
               (UX.md §8). It used to be a line of text that appeared where the card would
               later be, which reads as an error message rather than as work in progress.
             */}
-            {shownIsLive && liveLoading && <ActionsSkeleton />}
+            {wantsRecommendation && liveLoading && <ActionsSkeleton />}
             {shownIsRisk && (
               <Surface as="aside">
                 <p className="text-label text-text">No preventive actions yet</p>
@@ -226,15 +239,15 @@ export function Shell({
                 </p>
               </Surface>
             )}
-            {shownIsLive && liveError && (
+            {wantsRecommendation && liveError && (
               <p className="p-4 text-meta text-muted">Could not get AI actions: {liveError}</p>
             )}
-            {shownIsLive && liveRecommendation && (
+            {wantsRecommendation && liveRecommendation && (
               <LiveActionsCard recommendation={liveRecommendation} />
             )}
-            {/* PRED and the simulated fires (Fase 8 mock cases) keep the old ranked-list
-                card untouched — only real Deepfire detections use LiveActionsCard above. */}
-            {!shownIsLive && analysis && (
+            {/* The old ranked-list card, for the mock demo fires that predate all of
+                this. Real detections and exercise cases both use LiveActionsCard above. */}
+            {!wantsRecommendation && analysis && (
               <>
                 <ActionsCard
                   analysis={analysis}

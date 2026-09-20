@@ -2,7 +2,14 @@ import "./loadEnv";
 import { createServer } from "node:http";
 import { buildLiveFireState } from "./liveFireState";
 import { getLiveFireStore, setLiveFireError, setLiveFireState } from "./liveFireStore";
-import { getActionRecommendation, isValidIncidentId, NotFoundError } from "./actionRecommendation";
+import {
+  getActionRecommendation,
+  getRecommendationForSnapshot,
+  isValidIncidentId,
+  NotFoundError,
+} from "./actionRecommendation";
+import { buildSimulatedSnapshot } from "./incidentSnapshot";
+import { simulatedFireCaseById } from "../scenario/simulatedFireCases";
 
 const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
 // Satélite, no push: clusters/perímetros/hotspots no llegan más rápido que
@@ -102,6 +109,33 @@ const server = createServer((req, res) => {
         // y responde `status: "unavailable"` con 200. Esto es un último resguardo.
         const message = err instanceof Error ? err.message : "unknown error";
         console.error(`[live] fallo inesperado generando recomendación para ${incidentId}:`, message);
+        sendJson(res, 500, { error: "unexpected error" });
+      });
+    return;
+  }
+
+  /*
+   * POST /api/simulated-fires/:id/actions — lo mismo para un caso de ejercicio.
+   *
+   * Ruta aparte y no el mismo `:id` porque un escenario no es un incidente real y no
+   * debe poder colarse por la puerta de los reales: ahí la lista la manda Deepfire y
+   * aquí es un fichero del repositorio. Lo que sí comparten es todo lo de dentro —
+   * prompt, validación y caché— y el modelo distingue los dos por `provenance`.
+   */
+  const simActionsMatch = url.pathname.match(/^\/api\/simulated-fires\/([^/]+)\/actions$/);
+  if (req.method === "POST" && simActionsMatch) {
+    const caseId = decodeURIComponent(simActionsMatch[1]);
+    const simCase = simulatedFireCaseById(caseId);
+    if (!simCase) {
+      sendJson(res, 404, { error: `Caso simulado ${caseId} no encontrado` });
+      return;
+    }
+
+    getRecommendationForSnapshot(buildSimulatedSnapshot(simCase))
+      .then((recommendation) => sendJson(res, 200, recommendation))
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "unknown error";
+        console.error(`[live] fallo generando recomendación para el caso ${caseId}:`, message);
         sendJson(res, 500, { error: "unexpected error" });
       });
     return;

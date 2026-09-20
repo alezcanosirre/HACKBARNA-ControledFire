@@ -3,23 +3,22 @@ import type { Page } from './route';
 import { Surface } from './Surface';
 
 /**
- * The legend of UX.md §4, bottom left next to the menu: the five cell states of
- * spec.md §4.7.
+ * The legend of UX.md §4, top right.
  *
- * The warm colours here are the ones the map paints, and this is the only place in the
- * interface where they appear: the legend is not decoration, it is the key to the data.
- * That is why each swatch sits on the dark map background and not on the light card.
+ * ONE state, not the five of spec.md §4.7. The other four — watch, at risk, contained,
+ * no status — were in the spec and on this legend, and nothing on the map has ever
+ * painted them: the live Deepfire feed only ever says a cell is burning, and so does
+ * SIMULATION. A key that lists four colours you will never see is not a key, it is a
+ * promise the map does not keep, and it costs the reader time working out which of the
+ * five they are looking at.
  *
- * Note: the map currently paints only NORMAL and BURNING (src/map/colors.ts). The other
- * three states come from the spec, and they are shown because the legend belongs to the
- * spec, not to whatever the layer happens to render today.
+ * They come back the day something paints them. PRED has its own key — a ramp, because
+ * risk is continuous — a few lines below.
+ *
+ * The swatch is the colour the map paints, over the dark background it has there.
  */
 const STATES = [
-  { label: 'No status', fill: 'bg-transparent', line: 'border-cell-grid/30' },
-  { label: 'Watch', fill: 'bg-cell-watch/22', line: 'border-cell-watch-line/45' },
-  { label: 'At risk', fill: 'bg-cell-risk/47', line: 'border-cell-risk-line/67' },
-  { label: 'Active', fill: 'bg-cell-active/80', line: 'border-cell-active-line/92' },
-  { label: 'Contained', fill: 'bg-cell-contained/35', line: 'border-cell-contained-line/51' },
+  { label: 'Active fire', fill: 'bg-cell-active/80', line: 'border-cell-active-line/92' },
 ];
 
 /**

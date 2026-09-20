@@ -1,3 +1,4 @@
+import type { SimulatedFireCase } from "../scenario/simulatedFireCases";
 import type { LiveFireSummary } from "./liveFireState";
 
 /**
@@ -11,6 +12,18 @@ import type { LiveFireSummary } from "./liveFireState";
  */
 export interface IncidentSnapshot {
   readonly incidentId: string;
+  /**
+   * De dónde sale este incidente, y por tanto cuánto se puede fiar el modelo de él.
+   *
+   * "satellite-detection" es un aviso de satélite sin confirmar sobre el terreno;
+   * "exercise-scenario" es un caso de ejercicio, donde los datos son firmes por
+   * definición y no hay nada que verificar. Sin esta distinción el prompt trata los dos
+   * igual y recomienda "verificad el aviso" para un escenario cuyos datos son un
+   * supuesto, no una detección.
+   */
+  readonly provenance: "satellite-detection" | "exercise-scenario";
+  /** Topónimo legible. null cuando la fuente no tiene ninguno (Deepfire no da nombres). */
+  readonly place: string | null;
   /** Primera y última detección de satélite confirmadas para este cluster. */
   readonly firstObservedAt: string; // ISO 8601
   readonly lastObservedAt: string; // ISO 8601
@@ -28,8 +41,34 @@ export interface IncidentSnapshot {
     readonly perimeterM: number | null;
     readonly hotspotsUsed: number | null;
   };
-  /** Nº de celdas H3 que arden ahora mismo, según el último ciclo de sondeo. */
+  /** Nº de celdas que arden ahora mismo, según el último ciclo de sondeo. */
   readonly activeCellCount: number;
+  /**
+   * Terreno, propagación y qué hay cerca. Todo `null` para un incidente real: Deepfire
+   * no tiene usos del suelo, ni modelo de combustible, ni un endpoint de valores en
+   * riesgo, y las tasas de propagación quedan fuera de su contrato.
+   *
+   * Un caso de ejercicio sí los trae, y son justo los campos que el modelo lleva
+   * pidiendo en `missingData`. Es la diferencia entre "verificad esto" y una prioridad
+   * de verdad.
+   */
+  readonly zone: {
+    readonly landCover: string;
+    readonly slopeDeg: number;
+    readonly fuelLoad: string;
+  } | null;
+  readonly spread: {
+    readonly directionDeg: number;
+    readonly speedKmh: number;
+  } | null;
+  readonly valuesAtRisk: readonly {
+    readonly type: string;
+    readonly name: string;
+    readonly distanceKm: number;
+    readonly population: number | null;
+    /** ¿Está en la trayectoria del viento? Es lo que convierte cercanía en urgencia. */
+    readonly downwind: boolean;
+  }[] | null;
   /**
    * El tiempo que hace AHORA sobre el incidente, de met.no (weather.ts) — no de
    * Deepfire, que no da meteo.
@@ -53,6 +92,8 @@ export interface IncidentSnapshot {
 export function buildIncidentSnapshot(fire: LiveFireSummary): IncidentSnapshot {
   return {
     incidentId: fire.id,
+    provenance: "satellite-detection",
+    place: null,
     firstObservedAt: fire.firstObserved,
     lastObservedAt: fire.lastObserved,
     centroid: fire.centroid,
@@ -68,6 +109,9 @@ export function buildIncidentSnapshot(fire: LiveFireSummary): IncidentSnapshot {
     },
     activeCellCount: fire.cellIds.length,
     weather: fire.weather,
+    zone: null,
+    spread: null,
+    valuesAtRisk: null,
   };
 }
 
@@ -79,6 +123,8 @@ export function buildIncidentSnapshot(fire: LiveFireSummary): IncidentSnapshot {
  */
 export const INCIDENT_FIELD_PATHS: readonly string[] = [
   "incident.incidentId",
+  "incident.provenance",
+  "incident.place",
   "incident.firstObservedAt",
   "incident.lastObservedAt",
   "incident.centroid",
@@ -98,4 +144,71 @@ export const INCIDENT_FIELD_PATHS: readonly string[] = [
   "incident.weather.windDirectionDeg",
   "incident.weather.source",
   "incident.weather.observedAt",
+  "incident.zone",
+  "incident.zone.landCover",
+  "incident.zone.slopeDeg",
+  "incident.zone.fuelLoad",
+  "incident.spread",
+  "incident.spread.directionDeg",
+  "incident.spread.speedKmh",
+  "incident.valuesAtRisk",
 ];
+
+/**
+ * La instantánea de un caso de ejercicio (api/src/scenario/simulatedFireCases.ts).
+ *
+ * Mismo contrato que la de un incidente real, con la diferencia que importa: aquí hay
+ * terreno, propagación y valores en riesgo, porque el caso los trae escritos. Ese es el
+ * motivo de mandar un escenario al modelo — no es que sea más barato, es que con estos
+ * campos la recomendación deja de ser "verificad el aviso" y pasa a ordenar prioridades.
+ *
+ * `provenance: "exercise-scenario"` es lo que le dice al modelo que no tiene nada que
+ * confirmar: los datos de un supuesto son firmes por definición.
+ */
+export function buildSimulatedSnapshot(c: SimulatedFireCase): IncidentSnapshot {
+  return {
+    incidentId: c.id,
+    provenance: "exercise-scenario",
+    place: c.name,
+    firstObservedAt: c.detectedAt,
+    lastObservedAt: c.detectedAt,
+    // El caso es una rejilla local sin lat/lng: el ancla geográfica la pone map/, así
+    // que aquí el centroide no existe y se declara como tal en vez de inventarlo.
+    centroid: { lat: 0, lng: 0 },
+    detection: {
+      latestConfidence: null,
+      latestSource: c.source,
+      latestFireRadiativePowerMw: null,
+    },
+    perimeter: {
+      areaHa: c.burnedAreaHa,
+      perimeterM: null,
+      hotspotsUsed: null,
+    },
+    activeCellCount: c.burningCells.length,
+    weather: {
+      temperatureC: c.environment.temperature,
+      humidityPct: c.environment.humidity * 100,
+      windSpeedKmh: c.environment.wind.speed,
+      windDirectionDeg: c.environment.wind.direction,
+      source: "exercise scenario",
+      observedAt: c.detectedAt,
+    },
+    zone: {
+      landCover: c.zone.landCover,
+      slopeDeg: c.zone.slopeDeg,
+      fuelLoad: c.zone.fuelLoad,
+    },
+    spread: {
+      directionDeg: c.spread.directionDeg,
+      speedKmh: c.spread.speedKmh,
+    },
+    valuesAtRisk: c.valuesAtRisk.map((v) => ({
+      type: v.type,
+      name: v.name,
+      distanceKm: v.distanceKm,
+      population: v.population ?? null,
+      downwind: v.downwind,
+    })),
+  };
+}

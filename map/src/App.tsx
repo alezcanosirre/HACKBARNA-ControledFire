@@ -17,6 +17,7 @@ import {
 import { useLiveFireState } from './live/useLiveFireState';
 import { LIVE_FILL, LIVE_STROKE, statusFromLiveCells } from './live/liveFires';
 import { quadkeysForH3Cells } from './live/h3ToQuadkey';
+import { boundsForH3Cells } from './live/h3Bounds';
 import { Shell } from './ui/Shell';
 import { clearSelection, openSelection, useRoute } from './ui/route';
 import { buildLiveRisk } from './pred/livePredictions';
@@ -159,6 +160,21 @@ export default function App() {
   // and the second is already there.
   const previousFire = useRef<string | null>(selectedFire);
 
+  /*
+   * The live fires, reachable from the framing effect without becoming one of its
+   * dependencies. `hasLiveTarget` IS a dependency, and it is a boolean on purpose: it
+   * flips once, when the poll finally brings the fire named in the URL, and then stays
+   * put. That covers arriving through a pasted link — selection first, data later —
+   * without re-framing on every refresh.
+   */
+  const liveFiresRef = useRef(liveFires);
+  // Written in an effect, not during render. Effects run in source order, so this one
+  // has refreshed the ref before the framing effect below ever reads it.
+  useEffect(() => {
+    liveFiresRef.current = liveFires;
+  }, [liveFires]);
+  const hasLiveTarget = liveFires.some((f) => f.id === selectedFire);
+
   /**
    * Selecting a fire frames the camera on it. It is the confirmation that the click
    * landed where the operator thought: the screen moves to the place.
@@ -175,7 +191,19 @@ export default function App() {
     const leaving = previousFire.current;
     previousFire.current = selectedFire;
 
-    const target = simulatedFireById(selectedFire)?.bounds ?? null;
+    /*
+     * Two kinds of fire can be selected and only one of them carries its own bounds.
+     * The simulated one knows its grid (engine/anchor.ts); a real one arrives as a list
+     * of H3 cells, so its extent is derived from them here.
+     *
+     * The live list is read through a ref on purpose. As a dependency it would re-run
+     * this effect on every poll — every 15 s — and fly the camera back to the fire,
+     * undoing whatever the operator had just panned to.
+     */
+    const liveFire = liveFiresRef.current.find((f) => f.id === selectedFire);
+    const target =
+      simulatedFireById(selectedFire)?.bounds ??
+      (liveFire ? boundsForH3Cells(liveFire.cellIds) : null);
     if (!target) {
       // Arriving with no selection moves nothing: VIEW_RMB is where it starts.
       if (!leaving) return;
@@ -214,7 +242,7 @@ export default function App() {
       } as MapViewState;
     });
 
-  }, [selectedFire, measured]);
+  }, [selectedFire, measured, hasLiveTarget]);
 
   const layers = useMemo(
     () => [

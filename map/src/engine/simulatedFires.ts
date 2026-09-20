@@ -4,7 +4,7 @@ import {
 } from '../../../api/src/scenario/simulatedFireCases';
 import type { Fire, LandCover, FuelLoad, ValueType } from '../mocks/types';
 import { QUAD_Z } from '../map/constants';
-import { cellSideM, createAnchor, type Anchor2D } from './anchor';
+import { createAnchor, type Anchor2D } from './anchor';
 
 /**
  * SIMULATION, driven by the static cases in api/src/scenario/simulatedFireCases.ts.
@@ -50,9 +50,7 @@ const DEFAULT_CENTER: Anchor2D = { latitude: 41.43, longitude: 2.09 };
  * cell size — a square on this map means the same amount of ground wherever it is, and
  * that is worth more than matching a hectare figure that was invented anyway.
  *
- * The figure follows the picture, not the other way round: `area_ha` below is computed
- * from the cells actually painted, so the number in the panel is always the size of
- * what you can see.
+ * The hectares are the case's own, not a count of squares — see `toFire` below.
  */
 
 export interface SimulatedCell {
@@ -75,7 +73,7 @@ export interface SimulatedFire {
  * comment says the shapes were kept parallel so adapting would be renaming rather than
  * redesigning — this is that renaming.
  */
-function toFire(c: SimulatedFireCase, lat: number, lng: number, areaHa: number): Fire {
+function toFire(c: SimulatedFireCase, lat: number, lng: number): Fire {
   return {
     id: c.id,
     cell_id: c.id,
@@ -84,11 +82,20 @@ function toFire(c: SimulatedFireCase, lat: number, lng: number, areaHa: number):
     detected_at: c.detectedAt,
     confidence: c.confidence,
     source: c.source as Fire['source'],
-    // NOT the case's own `burnedAreaHa`: the area of what is actually painted. The two
-    // were within a hectare or two of each other anyway, and deriving it means the big
-    // number in the panel is always the size of the squares on the map. A figure that
-    // contradicts the picture next to it is worse than no figure.
-    area_ha: areaHa,
+    /*
+     * The case's own declared area, NOT the area of the cells painted.
+     *
+     * It was derived from the cells for a while, so the number matched the footprint.
+     * That broke the moment the backend started reading the same case: the model quotes
+     * `burnedAreaHa` in its recommendation, and the panel was printing 504 ha next to an
+     * AI text saying 34. One number for one fire.
+     *
+     * The same rule already governs the live feed: Deepfire cells are painted at the
+     * grid's resolution and `areaHa` comes from the satellite perimeter, never from
+     * counting squares. The grid is how the map draws; the hectares are what the
+     * incident is.
+     */
+    area_ha: c.burnedAreaHa,
     spread: { direction_deg: c.spread.directionDeg, speed_kmh: c.spread.speedKmh },
     weather: {
       temp_c: c.environment.temperature,
@@ -116,8 +123,6 @@ function build(): SimulatedFire[] {
     const center = CENTERS[c.id] ?? DEFAULT_CENTER;
     const anchor = createAnchor(center, c.mapWidth, c.mapHeight, QUAD_Z);
     const positions = c.burningCells.map((cell) => cell.position);
-    const side = cellSideM(QUAD_Z, center.latitude);
-    const areaHa = Math.round((c.burningCells.length * side * side) / 10_000);
 
     return {
       id: c.id,
@@ -127,7 +132,7 @@ function build(): SimulatedFire[] {
         fireId: c.id,
       })),
       bounds: anchor.boundsOf(positions),
-      fire: toFire(c, center.latitude, center.longitude, areaHa),
+      fire: toFire(c, center.latitude, center.longitude),
     };
   });
 }

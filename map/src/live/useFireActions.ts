@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { ActionRecommendation, LiveFireSummary } from './types';
+import type { ActionRecommendation } from './types';
 
 /**
  * The real call: POST /api/live-fires/:id/actions (api/src/live/actionRecommendation.ts)
@@ -9,8 +9,20 @@ import type { ActionRecommendation, LiveFireSummary } from './types';
  * the same way /api/live-fires already is. A 200 with `status: "unavailable"` is not an
  * error: it is Nebius (or the key) being unreachable, already handled server-side.
  */
-async function fetchAnalysisFor(fire: LiveFireSummary): Promise<ActionRecommendation> {
-  const res = await fetch(`/api/live-fires/${encodeURIComponent(fire.id)}/actions`, {
+/**
+ * Two routes, one shape. A real incident goes to /api/live-fires and an exercise case to
+ * /api/simulated-fires; on the backend they share prompt, validation and cache, and the
+ * model tells them apart by `incident.provenance`. They are separate routes on purpose:
+ * one list comes from Deepfire and the other from a file in this repo, and a scenario
+ * must not be able to walk in through the door meant for real fires.
+ */
+export type ActionsTarget =
+  | { readonly kind: 'live'; readonly id: string }
+  | { readonly kind: 'simulated'; readonly id: string };
+
+async function fetchAnalysisFor(target: ActionsTarget): Promise<ActionRecommendation> {
+  const base = target.kind === 'live' ? 'live-fires' : 'simulated-fires';
+  const res = await fetch(`/api/${base}/${encodeURIComponent(target.id)}/actions`, {
     method: 'POST',
   });
   if (!res.ok) {
@@ -20,7 +32,7 @@ async function fetchAnalysisFor(fire: LiveFireSummary): Promise<ActionRecommenda
   return (await res.json()) as ActionRecommendation;
 }
 
-export function useFireActions(fire: LiveFireSummary | null): {
+export function useFireActions(target: ActionsTarget | null): {
   analysis: ActionRecommendation | null;
   loading: boolean;
   error: string | null;
@@ -30,7 +42,7 @@ export function useFireActions(fire: LiveFireSummary | null): {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!fire) {
+    if (!target) {
       setAnalysis(null);
       setLoading(false);
       setError(null);
@@ -39,7 +51,7 @@ export function useFireActions(fire: LiveFireSummary | null): {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchAnalysisFor(fire)
+    fetchAnalysisFor(target)
       .then((result) => {
         if (!cancelled) setAnalysis(result);
       })
@@ -52,11 +64,11 @@ export function useFireActions(fire: LiveFireSummary | null): {
     return () => {
       cancelled = true;
     };
-    // Keyed on the id, not the object: a poll cycle rebuilds `fire` every 2 min even
+    // Keyed on the id, not the object: a poll cycle rebuilds the summary every 2 min even
     // when nothing changed, and re-fetching (a paid Nebius call) on every poll would
     // both flicker the panel and burn money for no reason.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fire?.id]);
+  }, [target?.kind, target?.id]);
 
   return { analysis, loading, error };
 }
