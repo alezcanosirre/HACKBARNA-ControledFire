@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://REPLACE-WITH-YOUR-BACKEND-URL/api/$1" }
+  ]
+}

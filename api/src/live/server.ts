@@ -12,7 +12,9 @@ import { buildSimulatedSnapshot } from "./incidentSnapshot";
 import { simulatedFireCaseById } from "../scenario/simulatedFireCases";
 import { getSimulatedRiskAssessment } from "./simulatedRisk";
 
-const PORT = Number(process.env.LIVE_SERVER_PORT ?? 3001);
+// `PORT` first: most hosts (Render, Railway, Fly) inject it and expect the app to
+// listen there — LIVE_SERVER_PORT stays as the local-dev override.
+const PORT = Number(process.env.PORT ?? process.env.LIVE_SERVER_PORT ?? 3001);
 // Satélite, no push: clusters/perímetros/hotspots no llegan más rápido que
 // el paso del satélite sobre la zona (minutos-horas). 2 min es margen
 // razonable para que la demo se vea viva sin ametrallar la API — ajustar
