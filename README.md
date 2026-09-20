@@ -1,4 +1,4 @@
-# ControledFire
+# ControlledFire
 
 **Real wildfire data, read the way an incident commander actually needs it.**
 
